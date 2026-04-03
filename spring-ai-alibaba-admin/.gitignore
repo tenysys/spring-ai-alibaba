@@ -37,6 +37,9 @@ nohup.out
 # node_modules
 **/node_modules
 
+# Claude
+.claude/
+
 # Generated Files
 docker/middleware/mysql/data/*
 docker/middleware/mysql/log/*

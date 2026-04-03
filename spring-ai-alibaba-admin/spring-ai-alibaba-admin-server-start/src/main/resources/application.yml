@@ -5,7 +5,7 @@ server:
     min-response-size: 2048
 nacos:
   # 支持通过环境变量 NACOS_SERVER_ADDR 覆盖，默认值在各个 profile 中定义
-  server-addr: ${NACOS_SERVER_ADDR}
+  server-addr: ${NACOS_SERVER_ADDR:198.87.103.56:28848}
 management:
   tracing:
     sampling:
@@ -15,7 +15,7 @@ management:
       export:
         enabled: true
       # 支持通过环境变量 MANAGEMENT_OTLP_TRACING_EXPORT_ENDPOINT 覆盖，默认值在各个 profile 中定义
-      endpoint: ${MANAGEMENT_OTLP_TRACING_EXPORT_ENDPOINT}
+      endpoint: ${MANAGEMENT_OTLP_TRACING_EXPORT_ENDPOINT:}
     metrics:
       export:
         enabled: false
@@ -73,9 +73,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 支持通过环境变量覆盖，默认值在各个 profile 中定义
     # SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://198.87.103.132:5506/sophic-agent?useUnicode=true&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:his}
+    password: ${SPRING_DATASOURCE_PASSWORD:His@9700}
     druid:
       initial-size: 5
       min-idle: 5
@@ -94,9 +94,10 @@ spring:
     redis:
       # 支持通过环境变量覆盖，默认值在各个 profile 中定义
       # SPRING_REDIS_HOST, SPRING_REDIS_PORT, SPRING_REDIS_DATABASE
-      host: ${SPRING_REDIS_HOST}
-      port: ${SPRING_REDIS_PORT}
+      host: ${SPRING_REDIS_HOST:127.0.0.1}
+      port: ${SPRING_REDIS_PORT:6379}
       database: ${SPRING_REDIS_DATABASE:0}
+      password: Nr-9000
   freemarker:
     cache: false
     charset: UTF-8
@@ -121,9 +122,9 @@ spring:
         persistence:
           jdbc:
             # 使用与 datasource 相同的配置，通过环境变量覆盖
-            url: ${SPRING_DATASOURCE_URL}
-            user: ${SPRING_DATASOURCE_USERNAME}
-            password: ${SPRING_DATASOURCE_PASSWORD}
+            url: ${SPRING_DATASOURCE_URL:jdbc:mysql://198.87.103.132:5506/sophic-agent?useUnicode=true&characterEncoding=UTF-8}
+            user: ${SPRING_DATASOURCE_USERNAME:his}
+            password: ${SPRING_DATASOURCE_PASSWORD:His@9700}
             driver: com.mysql.cj.jdbc.Driver
 mybatis:
   mapper-locations: classpath:mapper/*.xml
