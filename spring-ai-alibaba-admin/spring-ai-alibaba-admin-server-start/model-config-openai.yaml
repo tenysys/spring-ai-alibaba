@@ -2,9 +2,9 @@ models:
   - id: 1
     name: openai-gpt4o
     provider: openai
-    modelName: gpt-4o
-    baseUrl: https://api.openai.com/v1
-    apiKey: ${OPENAI_API_KEY}
+    modelName: gpt-5.4
+    baseUrl: https://capi.quan2go.com/openai
+    apiKey: 1AC0986F-806E-4CE4-9745-756F2B4555FF
     status: 1
     defaultParameters:
       temperature: 0.7

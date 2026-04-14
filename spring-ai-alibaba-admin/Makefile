@@ -37,11 +37,11 @@ docker-check:
 docker-check: ## Check if Docker is installed and running.
 	@$(call LOG_TARGET)
 	if ! command -v docker &> /dev/null; then \
-		@$(call errorLog, Docker is not installed. Please install Docker to proceed.); \
+		$(call errorLog, Docker is not installed. Please install Docker to proceed.); \
 		exit 1; \
 	fi
 	if ! docker info > /dev/null 2>&1; then \
-		@$(call errorLog, Docker is not running. Please start Docker to proceed.); \
+		$(call errorLog, Docker is not running. Please start Docker to proceed.); \
 		exit 1; \
 	fi
 
@@ -61,7 +61,7 @@ build-image: docker-check
 image-push: build-image ## Push the Docker images to a container registry. Usage: make image-push REGISTRY=your-registry
 	@$(call LOG_TARGET)
 	@if [ -z "$(REGISTRY)" ]; then \
-		@$(call errorLog, REGISTRY is not specified. Usage: make image-push REGISTRY=your-registry); \
+		$(call errorLog, REGISTRY is not specified. Usage: make image-push REGISTRY=your-registry); \
 		exit 1; \
 	fi
 	@$(call log, Pushing images to $(REGISTRY)...)
@@ -74,18 +74,18 @@ image-push: build-image ## Push the Docker images to a container registry. Usage
 deploy-k8s: ## Deploy the Spring AI Alibaba Admin application to a Kubernetes cluster. Usage: make deploy-k8s BUILD_LOCAL=true/false REGISTRY=your-registry
 	$(call LOG_TARGET)
 	@if [ "$(BUILD_LOCAL)" = "true" ]; then \
-		@$(call log, Building images locally for Kubernetes...); \
-		@$(MAKE) build-image; \
+		$(call log, Building images locally for Kubernetes...); \
+		$(MAKE) build-image; \
 		export IMAGE_PULL_POLICY=IfNotPresent; \
 	else \
 		if [ -z "$(REGISTRY)" ]; then \
-			@$(call errorLog, REGISTRY is required when BUILD_LOCAL=false. Usage: make deploy-k8s REGISTRY=your-registry); \
+			$(call errorLog, REGISTRY is required when BUILD_LOCAL=false. Usage: make deploy-k8s REGISTRY=your-registry); \
 			exit 1; \
 		fi; \
-		@$(call log, Using remote images from $(REGISTRY)...); \
+		$(call log, Using remote images from $(REGISTRY)...); \
 		export IMAGE_PULL_POLICY=Always; \
 	fi; \
-	@$(call log, Deploying to Kubernetes cluster...); \
+	$(call log, Deploying to Kubernetes cluster...); \
 	export FRONTEND_IMAGE=$(FRONTEND_IMAGE); \
 	export BACKEND_IMAGE=$(BACKEND_IMAGE); \
 	export IMAGE_TAG=$(IMAGE_TAG); \
@@ -104,14 +104,14 @@ deploy-compose: docker-check
 deploy-compose: ## Deploy the Spring AI Alibaba Admin application using Docker Compose. Usage: make deploy-compose BUILD_LOCAL=true/false REGISTRY=your-registry
 	@$(call LOG_TARGET)
 	@if [ "$(BUILD_LOCAL)" = "true" ]; then \
-		@$(call log, Building images locally...); \
-		@$(MAKE) build-image; \
+		$(call log, Building images locally...); \
+		$(MAKE) build-image; \
 	else \
 		if [ -z "$(REGISTRY)" ]; then \
-			@$(call errorLog, REGISTRY is required when BUILD_LOCAL=false. Usage: make deploy-compose REGISTRY=your-registry); \
+			$(call errorLog, REGISTRY is required when BUILD_LOCAL=false. Usage: make deploy-compose REGISTRY=your-registry); \
 			exit 1; \
 		fi; \
-		@$(call log, Pulling images from $(REGISTRY)...); \
+		$(call log, Pulling images from $(REGISTRY)...); \
 		docker pull $(FRONTEND_IMAGE):$(IMAGE_TAG); \
 		docker pull $(BACKEND_IMAGE):$(IMAGE_TAG); \
 	fi
@@ -135,13 +135,13 @@ undeploy-compose-clean: docker-check ## Undeploy and clean all data (WARNING: Th
 	@$(call LOG_TARGET)
 	@read -p "This will delete all data! Are you sure? (yes/no): " confirm; \
 	if [ "$$confirm" = "yes" ]; then \
-		@$(call log, Stopping services and removing volumes...); \
+		$(call log, Stopping services and removing volumes...); \
 		cd deploy/docker-compose && docker-compose -f docker-compose-service.yaml down -v; \
-		@$(call log, Removing data directory...); \
+		$(call log, Removing data directory...); \
 		rm -rf deploy/docker-compose/data; \
-		@$(call log, Cleanup completed); \
+		$(call log, Cleanup completed); \
 	else \
-		@$(call errorLog, Cleanup cancelled); \
+		$(call errorLog, Cleanup cancelled); \
 	fi
 
 .PHONY: env-start
@@ -149,10 +149,10 @@ env-start: ## Start the environment services. Usage: make env-start MODE=dev/pro
 	@$(call LOG_TARGET)
 	@MODE=$${MODE:-dev}; \
 	if [ "$$MODE" != "dev" ] && [ "$$MODE" != "prod" ]; then \
-		@$(call errorLog, Invalid MODE '$$MODE'. Use 'dev' or 'prod'.); \
+		$(call errorLog, Invalid MODE '$$MODE'. Use 'dev' or 'prod'.); \
 		exit 1; \
 	fi; \
-	@$(call log, Starting middleware services in $$MODE mode...); \
+	$(call log, Starting middleware services in $$MODE mode...); \
 	cd docker/middleware && bash run.sh $$MODE
 
 .PHONY: env-stop
@@ -160,10 +160,10 @@ env-stop: ## Stop the environment services. Usage: make env-stop MODE=dev/prod (
 	@$(call LOG_TARGET)
 	@MODE=$${MODE:-dev}; \
 	if [ "$$MODE" != "dev" ] && [ "$$MODE" != "prod" ]; then \
-		@$(call errorLog, Invalid MODE '$$MODE'. Use 'dev' or 'prod'.); \
+		$(call errorLog, Invalid MODE '$$MODE'. Use 'dev' or 'prod'.); \
 		exit 1; \
 	fi; \
-	@$(call log, Stopping middleware services in $$MODE mode...); \
+	$(call log, Stopping middleware services in $$MODE mode...); \
 	cd docker/middleware && bash stop.sh $$MODE
 
 .PHONY: env-clean
@@ -171,16 +171,16 @@ env-clean: ## Clean all middleware data. Usage: make env-clean MODE=dev/prod (de
 	@$(call LOG_TARGET)
 	@MODE=$${MODE:-dev}; \
 	if [ "$$MODE" != "dev" ] && [ "$$MODE" != "prod" ]; then \
-		@$(call errorLog, Invalid MODE '$$MODE'. Use 'dev' or 'prod'.); \
+		$(call errorLog, Invalid MODE '$$MODE'. Use 'dev' or 'prod'.); \
 		exit 1; \
 	fi; \
-	@$(call log, Cleaning middleware data in $$MODE mode...); \
+	$(call log, Cleaning middleware data in $$MODE mode...); \
 	read -p "This will delete all data! Are you sure? (yes/no): " confirm; \
 	if [ "$$confirm" = "yes" ]; then \
 		cd docker/middleware && docker compose -f docker-compose-$$MODE.yaml down -v; \
-		@$(call log, Data cleaned successfully); \
+		$(call log, Data cleaned successfully); \
 	else \
-		@$(call errorLog, Cleanup cancelled); \
+		$(call errorLog, Cleanup cancelled); \
 	fi
 
 ##@ Local Run mode

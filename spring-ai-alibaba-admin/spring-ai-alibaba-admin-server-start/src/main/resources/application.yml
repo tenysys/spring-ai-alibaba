@@ -5,7 +5,7 @@ server:
     min-response-size: 2048
 nacos:
   # 支持通过环境变量 NACOS_SERVER_ADDR 覆盖，默认值在各个 profile 中定义
-  server-addr: ${NACOS_SERVER_ADDR:198.87.103.56:28848}
+  server-addr: ${NACOS_SERVER_ADDR}
 management:
   tracing:
     sampling:
@@ -15,7 +15,7 @@ management:
       export:
         enabled: true
       # 支持通过环境变量 MANAGEMENT_OTLP_TRACING_EXPORT_ENDPOINT 覆盖，默认值在各个 profile 中定义
-      endpoint: ${MANAGEMENT_OTLP_TRACING_EXPORT_ENDPOINT:}
+      endpoint: ${MANAGEMENT_OTLP_TRACING_EXPORT_ENDPOINT:http://collector:4318}
     metrics:
       export:
         enabled: false
@@ -109,7 +109,7 @@ spring:
     # Spring Boot 默认 Elasticsearch 配置（如果使用 Spring Data Elasticsearch）
     # 注意：自定义 ElasticsearchClient 的配置在 elasticsearch.yml 中
     # 支持通过环境变量 SPRING_ELASTICSEARCH_URIS 覆盖，默认值在各个 profile 中定义
-    uris: ${SPRING_ELASTICSEARCH_URIS}
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
@@ -135,7 +135,7 @@ mybatis:
 rocketmq:
   # 支持通过环境变量覆盖，默认值在各个 profile 中定义
   # ROCKETMQ_ENDPOINTS, ROCKETMQ_DOCUMENT_INDEX_TOPIC, ROCKETMQ_DOCUMENT_INDEX_GROUP
-  endpoints: ${ROCKETMQ_ENDPOINTS}
+  endpoints: ${ROCKETMQ_ENDPOINTS:localhost:18081}
   document-index-topic: ${ROCKETMQ_DOCUMENT_INDEX_TOPIC:topic_saa_studio_document_index}
   document_index_group: ${ROCKETMQ_DOCUMENT_INDEX_GROUP:group_saa_studio_document_index}
 initializr:

@@ -43,7 +43,12 @@ fi
 
 # Start containers with docker compose
 echo "Starting containers with docker-compose-${MODE}.yaml..."
-docker compose -f docker-compose-${MODE}.yaml up -d --build
+if ! docker compose -f docker-compose-${MODE}.yaml up -d --build; then
+    echo ""
+    echo "Failed to start middleware services in $MODE mode."
+    echo "Check the docker compose output above for the failing image or service."
+    exit 1
+fi
 
 echo ""
 echo "Middleware services started successfully in $MODE mode!"
