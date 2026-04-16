@@ -5,6 +5,7 @@
 - 主键规范：统一使用 `id bigint unsigned auto_increment`，业务主键使用 `xxx_id` / `xxx_code`。
 - 状态规范：统一使用 `status`；需要开关控制时补充 `enabled`。
 - 时间规范：统一使用 `gmt_create`、`gmt_modified`；运行态补充 `gmt_start`、`gmt_end`。
+- 时间字段说明：`gmt_*` 仅作为统一时间字段命名规范，不强制表示 GMT/UTC 时区，实际时区以系统存储与应用约定为准。
 - 扩展字段：复杂配置优先使用 `json` 或 `text/longtext`，承载快照、策略、DSL、扩展元数据。
 - 账号权限域：沿用现有权限与认证服务的既有模型和数据表，SophicAgent 只做业务关联，不改造该域设计。
 - 应用与设计器域：参考 `spring-ai-alibaba-admin` 的 `application`、`application_version`、`application_component`、`agent_schema` 设计。
@@ -42,15 +43,18 @@
 - `sophic_agent_application_binding_item`
 - `sophic_agent_high_code_service`
 - `sophic_agent_high_code_service_version`
+- `sophic_agent_guardrail_rule`
+- `sophic_agent_guardrail_fixed_reply`
 
 ### 2.3 运行时域
 
 - `sophic_agent_session`
 - `sophic_agent_session_message`
 - `sophic_agent_task`
-- `sophic_agent_execution_plan`
 - `sophic_agent_execution_step`
-- `sophic_agent_task_queue`
+- `smc_application`（已有）
+- `smc_service`（已有）
+- `smc_instance`（已有）
 
 ### 2.4 能力资产域
 
@@ -63,13 +67,11 @@
 - `sophic_agent_mcp_server`
 - `sophic_agent_mcp_server_instance`
 - `sophic_agent_memory_short_term`
-- `sophic_agent_memory_working`
 - `sophic_agent_memory_library`
 - `sophic_agent_memory_rule`
 - `sophic_agent_memory_long_term`
 - `sophic_agent_memory_hit_record`
 - `sophic_agent_memory_entity`
-- `sophic_agent_memory_extract_log`
 - `sophic_agent_memory_recall_test`
 - `sophic_agent_datasource`
 - `sophic_agent_datasource_table`
@@ -84,10 +86,7 @@
 - `sophic_agent_model_config`
 - `sophic_agent_invoke_log`
 - `sophic_agent_runtime_metric`
-- `sophic_agent_guardrail_rule`
-- `sophic_agent_guardrail_record`
 - `sophic_agent_agent_feedback`
-- `sophic_agent_deploy_plan`
 - `sophic_agent_publish_record`
 - `sophic_agent_eval_dataset`
 - `sophic_agent_eval_dataset_item`
@@ -145,7 +144,7 @@
   - 关键字段：`group_id`、`user_id`、`api_key`、`description`、`expired_at`、`status`
 - `sophic_agent_resource`
   - 统一资源注册表，用于权限控制时对应用、工具、知识库、数据源、MCP 服务等资源进行统一标识和授权关联。
-  - 关键字段：`resource_id`、`resource_name`、`resource_type`、`source_system`、`resource_code`、`owner_account_id`、`ext_config`、`status`
+- 关键字段：`id`、`resource_id`、`resource_name`、`resource_type`、`creator_id`、`create_time`、`update_time`、`owner_user_id`、`ext_config`、`status`
 - `sophic_agent_resource_acl`
   - 资源访问控制表，用于实现具体业务资源的读写权限分离，授权粒度支持个人、组、研究所。
   - 关键字段：`resource_id`、`subject_type`、`subject_id`、`permission_type`、`grant_type`、`status`、`creator`、`modifier`
@@ -265,11 +264,17 @@
   - 挂载组件详细信息表，对应 admin `reference` 的细粒度语义。
   - 关键字段：`binding_id`、`item_type`、`item_id`、`item_name`、`item_path`、`item_config`、`sort_no`、`status`
 - `sophic_agent_high_code_service`
-  - 高代码服务主表。
-  - 关键字段：`service_id`、`service_code`、`name`、`service_type`、`runtime_type`、`owner_account_id`、`latest_version`、`status`
+  - 高代码服务注册主表，用于从运行服务中筛选、登记高代码服务，并作为版本管理入口。
+- 关键字段：`service_id`、`service_code`、`name`、`service_type`、`runtime_type`、`owner_user_id`、`latest_version`、`status`
 - `sophic_agent_high_code_service_version`
-  - 高代码服务版本表。
+  - 高代码服务版本表，用于管理高代码服务不同版本的制品与部署配置。
   - 关键字段：`service_id`、`version`、`package_type`、`package_uri`、`deploy_config`、`input_schema`、`output_schema`、`change_log`、`status`
+- `sophic_agent_guardrail_rule`
+  - 应用规则干预配置表，用于对输入和输出内容执行正则匹配、替换、屏蔽等规则干预。
+  - 关键字段：`agent_id`、`rule_id`、`rule_code`、`rule_type`、`scope_type`、`scope_code`、`match_config`、`action_config`、`priority`、`enabled`、`status`
+- `sophic_agent_guardrail_fixed_reply`
+  - 应用固定问题输出配置表，用于对固定问题或相似问题配置预设回答内容。
+  - 关键字段：`agent_id`、`record_id`、`rule_id`、`task_id`、`session_id`、`input_snapshot`、`output_snapshot`、`action_result`、`gmt_create`
 
 说明：
 
@@ -277,6 +282,11 @@
 - `sophic_agent_application_binding` 用于承载挂载组件。
 - `sophic_agent_application_binding_item` 用于承载挂载组件的详细信息。
 - `type=workflow` 时，完整工作流 DSL、节点、边、画布和调试配置统一进入 `config_snapshot`。
+- `sophic_agent_high_code_service.service_id` 建议直接复用 `smc_service.id`，用于和运行态服务建立稳定映射。
+- `sophic_agent_high_code_service.service_code` 作为业务侧服务编码，用于展示、检索、发布和权限控制，不要求等于 `smc_service.id`。
+- `sophic_agent_guardrail_rule` 属于应用配置的一部分，一个应用可以配置多条护栏规则。
+- `sophic_agent_guardrail_rule` 负责输入/输出规则干预，典型能力为正则匹配与替换。
+- `sophic_agent_guardrail_fixed_reply` 负责固定问题输出配置，属于应用数据干预能力的一部分。
 
 #### 智能体模板与复制边界
 
@@ -368,22 +378,41 @@
 
 - `sophic_agent_session`
   - 会话主表，用于承载会话级状态。
-  - 关键字段：`session_id`、`agent_id`、`agent_version`、`account_id`、`session_title`、`source_type`、`gmt_last_active`、`status`
+- 关键字段：`session_id`、`agent_id`、`agent_version`、`user_id`、`session_title`、`source_type`、`gmt_last_active`、`status`
 - `sophic_agent_session_message`
   - 会话消息表。
   - 关键字段：`session_id`、`message_id`、`seq_no`、`role`、`content`、`content_type`、`token_usage`、`metadata`、`gmt_create`
 - `sophic_agent_task`
-  - 任务主表。
-  - 关键字段：`task_id`、`conversation_id`、`agent_id`、`agent_version`、`task_type`、`trigger_event_id`、`priority`、`progress`、`input_payload`、`output_payload`、`error_code`、`error_message`、`gmt_start`、`gmt_end`、`status`
-- `sophic_agent_execution_plan`
-  - 执行计划表。
-  - 关键字段：`task_id`、`plan_id`、`plan_content`、`decision_policy`、`risk_review`、`status`
+  - 单次执行主表，用于承载“一条用户消息触发的一次智能体/工作流执行”。
+  - 关键字段：`task_id`、`session_id`、`trigger_message_id`、`response_message_id`、`agent_id`、`agent_version`、`task_type`、`task_name`、`input_payload`、`output_payload`、`final_result`、`progress`、`error_code`、`error_message`、`gmt_start`、`gmt_end`、`status`
 - `sophic_agent_execution_step`
-  - 执行步骤表。
-  - 关键字段：`task_id`、`plan_id`、`step_no`、`step_id`、`step_type`、`step_name`、`step_input`、`step_output`、`cost_ms`、`error_code`、`error_message`、`status`
-- `sophic_agent_task_queue`
-  - 调度队列表。
-  - 关键字段：`queue_name`、`task_id`、`priority`、`scheduler_node`、`gmt_schedule`、`status`
+  - 执行步骤明细表，用于逐步记录“执行步骤是什么、做了什么、结果是什么”。
+  - 关键字段：`task_id`、`step_no`、`step_id`、`step_type`、`step_name`、`step_desc`、`executor_type`、`tool_ref`、`input_snapshot`、`output_snapshot`、`thought_snapshot`、`cost_ms`、`error_code`、`error_message`、`status`
+- `smc_application`（已有）
+  - 高代码运行应用表，用于管理运行平台中的应用归属信息。
+  - 关键字段：`application_id`、`application_name`、`owner`、`create_time`、`note`、`seq`
+- `smc_service`（已有）
+  - Nacos 通用服务表，用于承载从 Nacos 获取的服务定义信息，不只包含高代码服务。
+  - 关键字段：`id`、`service_name`、`source`、`params`、`type`、`create_time`、`update_time`、`note`、`version`、`service_info`、`ref_application`、`seq`
+- `smc_instance`（已有）
+  - 高代码服务实例表，用于管理服务实例运行状态、地址与启停可用性。
+  - 关键字段：`instance_id`、`service_id`、`ip`、`port`、`type`、`instance_mode`、`fingerprint`、`enabled`、`update_time`、`insert_time`、`version`、`last_offline_time`、`weight`
+
+说明：
+
+- 一次 `sophic_agent_session_message(role=USER)` 通常触发一次 `sophic_agent_task`。
+- 一次 `sophic_agent_task` 对应本轮对话的一次完整执行，最终可产出一条 `response_message_id` 对应的回复消息。
+- 一次 `sophic_agent_task` 下可以存在多个 `sophic_agent_execution_step`，用于完整还原本轮执行轨迹。
+- `sophic_agent_execution_step` 负责按步骤留痕，记录每一步执行动作、输入、输出和结果。
+- `smc_application`、`smc_service`、`smc_instance` 为已有运行管理表，继续复用，不在 SophicAgent 内重复设计高代码服务启停模型。
+- `smc_service` 为从 Nacos 获取的通用服务表，`smc_instance` 为对应实例表，二者不只服务于高代码场景。
+- SophicAgent 通过 `sophic_agent_high_code_service` 对 `smc_service` 中的服务进行筛选、登记和新增，只将被纳入管理范围的服务视为高代码服务。
+- 已存在于 `smc_service` 的服务，可通过筛选后纳入 `sophic_agent_high_code_service` 管理，纳管后保持 `sophic_agent_high_code_service.service_id = smc_service.id`。
+- 新增高代码服务时，先在 `sophic_agent_high_code_service` 中登记，再同步写入或发布到 `smc_service`，并保持两侧 `service_id` 一致。
+- `sophic_agent_high_code_service` / `sophic_agent_high_code_service_version` 用于高代码服务注册和版本管理。
+- `smc_service` / `smc_instance` 用于通用服务运行控制、实例发现和启停管理，`smc_application` 用于运行平台中的应用归属管理。
+- V1 任务执行状态统一由 `sophic_agent_task` 承载，不单独设计任务调度队列表。
+- 如后续确实存在独立调度中心、多节点抢占、延迟任务、重试编排等需求，再补充独立队列表或调度事件表。
 
 ### 3.4 能力资产域
 
@@ -394,7 +423,7 @@
   - 关键字段：`kb_id`、`type`、`status`、`name`、`description`、`process_config`、`index_config`、`search_config`、`total_docs`、`creator`、`modifier`
 - `sophic_agent_knowledge_document`
   - 知识文档表，参考 admin 的 `document` 表。
-  - 关键字段：`kb_id`、`doc_id`、`type`、`status`、`enabled`、`name`、`format`、`size`、`metadata`、`index_status`、`path`、`parsed_path`、`process_config`、`source`、`error`
+  - 关键字段：`kb_id`、`doc_id`、`type`、`status`、`enabled`、`name`、`format`、`size`、`metadata`、`index_status`、`path`、`parsed_path`、`process_config`、`source`、`error`、`creator`、`modifier`
 - `sophic_agent_knowledge_chunk`
   - 知识分片表。
   - 关键字段：`kb_id`、`doc_id`、`chunk_id`、`content`、`metadata`、`vector_id`、`status`
@@ -403,7 +432,7 @@
 
 - `sophic_agent_tool`
   - 工具主表。
-  - 关键字段：`tool_id`、`tool_code`、`plugin_id`、`name`、`description`、`tool_type`、`source`、`api_schema`、`config`、`enabled`、`latest_version`、`status`
+  - 关键字段：`tool_id`、`tool_code`、`name`、`description`、`tool_type`、`source`、`source_asset_type`、`source_asset_id`、`source_asset_version`、`publish_id`、`api_schema`、`config`、`test_status`、`enabled`、`latest_version`、`status`、`creator`、`modifier`
 - `sophic_agent_tool_version`
   - 工具版本表。
   - 关键字段：`tool_id`、`version`、`version_desc`、`schema_snapshot`、`config_snapshot`、`status`
@@ -412,7 +441,7 @@
   - 关键字段：`tool_id`、`request_payload`、`response_payload`、`success`、`error_message`、`cost_ms`
 - `sophic_agent_mcp_server`
   - MCP 服务主表，参考 admin 的 `mcp_server` 表。
-  - 关键字段：`server_code`、`name`、`description`、`source`、`deploy_env`、`type`、`deploy_config`、`account_id`、`status`、`biz_type`、`detail_config`、`host`、`install_type`
+  - 关键字段：`server_code`、`name`、`description`、`source`、`deploy_env`、`type`、`deploy_config`、`user_id`、`status`、`biz_type`、`detail_config`、`host`、`install_type`、`creator`、`modifier`
 - `sophic_agent_mcp_server_instance`
   - MCP 服务实例表，支撑服务实例列表、健康状态、运行控制。
   - 关键字段：`instance_id`、`server_code`、`instance_name`、`endpoint`、`health_status`、`runtime_status`、`gmt_last_heartbeat`、`metadata`
@@ -422,12 +451,9 @@
 - `sophic_agent_memory_short_term`
   - 短期记忆表。
   - 关键字段：`session_id`、`seq_no`、`role`、`content`、`metadata`、`expired_at`
-- `sophic_agent_memory_working`
-  - 工作记忆表。
-  - 关键字段：`task_id`、`memory_key`、`memory_value`
 - `sophic_agent_memory_library`
   - 记忆库主表。
-  - 关键字段：`memory_library_id`、`library_code`、`name`、`description`、`owner_account_id`、`default_rule_id`、`permission_scope`、`status`
+- 关键字段：`memory_library_id`、`library_code`、`name`、`description`、`owner_user_id`、`default_rule_id`、`permission_scope`、`status`
 - `sophic_agent_memory_rule`
   - 记忆规则表。
   - 关键字段：`rule_id`、`memory_library_id`、`rule_name`、`extract_mode`、`expire_days`、`rule_content`、`status`
@@ -438,14 +464,17 @@
   - 记忆命中记录表。
   - 关键字段：`hit_id`、`memory_library_id`、`memory_id`、`task_id`、`query_text`、`similarity_score`、`status`
 - `sophic_agent_memory_entity`
-  - 记忆实体表。
-  - 关键字段：`entity_id`、`memory_library_id`、`entity_type`、`entity_name`、`entity_summary`、`metadata`、`status`
-- `sophic_agent_memory_extract_log`
-  - 记忆抽取日志表。
-  - 关键字段：`extract_id`、`memory_library_id`、`task_id`、`rule_id`、`source_text`、`extract_result`、`status`
+  - 应用记忆归档表，用于记录某个应用（智能体或工作流）所属的记忆归档对象。
+  - 关键字段：`entity_id`、`memory_library_id`、`agent_id`、`entity_type`、`entity_name`、`entity_summary`、`metadata`、`status`
 - `sophic_agent_memory_recall_test`
   - 记忆召回测试表。
   - 关键字段：`test_id`、`memory_library_id`、`query_text`、`expected_memory_id`、`actual_result`、`score_detail`、`status`
+
+说明：
+
+- `sophic_agent_memory_long_term`、`sophic_agent_memory_entity`、`sophic_agent_memory_hit_record` 构成记忆主链路。
+- `sophic_agent_memory_recall_test` 用于记忆检索测试和命中率验证，保留为测试支撑表。
+- 记忆抽取过程不再单独设计 `sophic_agent_memory_extract_log`，如需排查抽取过程，优先复用运行日志、任务步骤日志或通用调试日志。
 
 #### 3.4.4 数据源与语义资产
 
@@ -482,24 +511,15 @@
 - `sophic_agent_runtime_metric`
   - 运行指标。
   - 关键字段：`metric_scope`、`metric_name`、`metric_value`、`metric_tags`、`collect_time`
-- `sophic_agent_guardrail_rule`
-  - 干预与护栏规则表。
-  - 关键字段：`rule_id`、`rule_code`、`rule_type`、`scope_type`、`scope_code`、`match_config`、`action_config`、`priority`、`enabled`、`status`
-- `sophic_agent_guardrail_record`
-  - 干预命中记录表。
-  - 关键字段：`record_id`、`rule_id`、`task_id`、`session_id`、`input_snapshot`、`output_snapshot`、`action_result`、`gmt_create`
 - `sophic_agent_agent_feedback`
   - 反馈表。
-  - 关键字段：`agent_id`、`task_id`、`session_id`、`account_id`、`rating`、`feedback_type`、`content`、`status`
-- `sophic_agent_deploy_plan`
-  - 部署计划表。
-  - 关键字段：`plan_id`、`env`、`plan_content`、`status`、`operator_id`、`gmt_start`、`gmt_end`
+- 关键字段：`agent_id`、`task_id`、`session_id`、`user_id`、`rating`、`feedback_type`、`content`、`status`
 - `sophic_agent_publish_record`
   - 发布记录表。
   - 关键字段：`publish_id`、`asset_type`、`asset_id`、`asset_version`、`publish_type`、`target_resource_id`、`input_schema`、`output_schema`、`config_snapshot`、`change_log`、`operator_id`、`status`
 - `sophic_agent_eval_dataset`
   - 评测集主表。
-  - 关键字段：`dataset_id`、`dataset_name`、`dataset_type`、`description`、`owner_account_id`、`status`
+- 关键字段：`dataset_id`、`dataset_name`、`dataset_type`、`description`、`owner_user_id`、`status`
 - `sophic_agent_eval_dataset_item`
   - 评测集样本表。
   - 关键字段：`dataset_id`、`item_id`、`question`、`reference_answer`、`conversation_context`、`tags`
@@ -663,6 +683,8 @@
 - `sophic_agent_application_version` 1-0/1 `sophic_agent_agent_schema`
 - `sophic_agent_application_version` 1-N `sophic_agent_application_binding`
 - `sophic_agent_application_binding` 1-N `sophic_agent_application_binding_item`
+- `sophic_agent_application` 1-N `sophic_agent_guardrail_rule`
+- `sophic_agent_guardrail_rule` 1-N `sophic_agent_guardrail_fixed_reply`
 - `sophic_agent_high_code_service` 1-N `sophic_agent_high_code_service_version`
 - `sophic_agent_model_provider` 1-N `sophic_agent_model`
 - `sophic_agent_model` 1-N `sophic_agent_model_config`
@@ -671,16 +693,17 @@
 
 - `sophic_agent_session` 1-N `sophic_agent_session_message`
 - `sophic_agent_session` 1-N `sophic_agent_task`
+- `sophic_agent_session_message` 1-1/N `sophic_agent_task`（用户消息触发执行）
+- `sophic_agent_task` N-1 `sophic_agent_session_message`（`response_message_id` 指向最终回复消息）
 - `sophic_agent_task` N-1 `sophic_agent_application_version`
-- `sophic_agent_task` 1-N `sophic_agent_execution_plan`
-- `sophic_agent_execution_plan` 1-N `sophic_agent_execution_step`
-- `sophic_agent_task_queue` N-1 `sophic_agent_task`
+- `sophic_agent_task` 1-N `sophic_agent_execution_step`
+- `smc_application` 1-N `smc_service`
+- `smc_service` 1-N `smc_instance`
 - `sophic_agent_invoke_log` N-1 `sophic_agent_task`
-- `sophic_agent_guardrail_record` N-1 `sophic_agent_task`
-- `sophic_agent_guardrail_record` N-1 `sophic_agent_session`
+- `sophic_agent_guardrail_fixed_reply` N-1 `sophic_agent_task`
+- `sophic_agent_guardrail_fixed_reply` N-1 `sophic_agent_session`
 - `sophic_agent_agent_feedback` N-1 `sophic_agent_task`
 - `sophic_agent_agent_feedback` N-1 `sophic_agent_session`
-- `sophic_agent_memory_working` N-1 `sophic_agent_task`
 - `sophic_agent_memory_short_term` N-1 `sophic_agent_session`
 
 ### 4.3 知识、工具、MCP、数据源链路
@@ -700,7 +723,6 @@
 - `sophic_agent_memory_library` 1-N `sophic_agent_memory_rule`
 - `sophic_agent_memory_library` 1-N `sophic_agent_memory_long_term`
 - `sophic_agent_memory_library` 1-N `sophic_agent_memory_entity`
-- `sophic_agent_memory_library` 1-N `sophic_agent_memory_extract_log`
 - `sophic_agent_memory_library` 1-N `sophic_agent_memory_recall_test`
 - `sophic_agent_memory_entity` 1-N `sophic_agent_memory_long_term`
 - `sophic_agent_memory_long_term` 1-N `sophic_agent_memory_hit_record`
@@ -727,7 +749,7 @@
 
 说明：
 
-- `sophic_agent_resource` 是统一资源锚点，业务上通常与各资源主表按 `resource_type + resource_code/resource_id` 建立一对一映射。
+- `sophic_agent_resource` 是统一资源锚点，业务上通常与各资源主表按 `resource_type + resource_id` 建立一对一映射。
 - `sophic_agent_resource_acl` 负责资源级授权，建议按 `(resource_id, subject_type, subject_id, permission_type)` 做唯一约束。
 - `subject_type` 建议支持：`USER`、`GROUP`、`INSTITUTE`。
 - `permission_type` 建议支持：`READ`、`WRITE`。
@@ -750,9 +772,11 @@
 - `sophic_agent_application(type, status)`
 - `sophic_agent_application_version(agent_id, version)`
 - `sophic_agent_application_binding(agent_id, agent_version)`
-- `sophic_agent_task(agent_id, status, gmt_create)`
+- `sophic_agent_task(session_id, trigger_message_id, status, gmt_start)`
 - `sophic_agent_execution_step(task_id, step_no)`
-- `sophic_agent_session(agent_id, account_id, gmt_last_active)`
+- `smc_service(ref_application, type, update_time)`
+- `smc_instance(service_id, enabled, update_time)`
+- `sophic_agent_session(agent_id, user_id, gmt_last_active)`
 - `sophic_agent_invoke_log(task_id, gmt_create)`
 - `sophic_agent_runtime_metric(metric_name, collect_time)`
 - `sophic_agent_knowledge_document(kb_id, index_status, status)`
@@ -761,13 +785,13 @@
 - `sophic_agent_memory_long_term(memory_library_id, user_id, status, gmt_create)`
 - `sophic_agent_publish_record(asset_type, asset_id, status)`
 - `sophic_agent_eval_task(target_type, target_id, status)`
-- `sophic_agent_guardrail_record(rule_id, gmt_create)`
+- `sophic_agent_guardrail_fixed_reply(rule_id, gmt_create)`
 
 ## 7. 结论
 
 - 当前版本已经不再区分 V1 / V2，所有确定需要的表均合并为 V1 正式设计。
-- 应用与设计器域以 `application + application_version + agent_schema + application_binding + application_binding_item` 为核心。
-- 会话、反馈、干预规则、MCP 实例、记忆实体/验证等此前缺失的表已纳入正式设计。
+- 应用与设计器域以 `application + application_version + agent_schema + application_binding + application_binding_item + guardrail_rule` 为核心。
+- 会话、反馈、护栏规则/固定输出配置、MCP 实例、记忆实体/验证等此前缺失的表已纳入正式设计。
 - MCP、知识库相关表的字段设计已按 admin 项目的现有设计风格收敛。
 - 这份文档可作为 SophicAgent 当前阶段的完整数据库设计基线。
 
@@ -819,13 +843,14 @@
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `resource_id` | `varchar(64)` | 业务主键，统一资源 id |
-| `resource_name` | `varchar(255)` | 资源名称 |
-| `resource_type` | `varchar(64)` | 资源类型，如 APPLICATION/TOOL/KB |
-| `source_system` | `varchar(64)` | 来源系统 |
-| `resource_code` | `varchar(64)` | 资源编码，通常关联具体业务表业务键 |
-| `owner_account_id` | `varchar(64)` | 资源所有人 |
+| `id` | `varchar(64)` | 主键，资源注册表自身 id |
+| `resource_id` | `varchar(64)` | 业务资源 id，如 `agent_id`、`tool_id`、`kb_id` |
+| `resource_name` | `varchar(128)` | 资源名称 |
+| `resource_type` | `varchar(32)` | 资源类型，如 APPLICATION/TOOL/KB |
+| `creator_id` | `varchar(64)` | 创建人 |
+| `create_time` | `datetime` | 创建时间 |
+| `update_time` | `datetime` | 更新时间 |
+| `owner_user_id` | `varchar(64)` | 资源所有人 |
 | `ext_config` | `json` | 扩展配置 |
 | `status` | `tinyint` | 状态 |
 
@@ -977,12 +1002,12 @@
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `service_id` | `varchar(64)` | 业务主键，服务 id |
-| `service_code` | `varchar(64)` | 服务编码 |
+| `service_id` | `varchar(64)` | 业务主键，服务 id，建议复用 `smc_service.id` |
+| `service_code` | `varchar(64)` | 服务编码，面向业务展示与管理 |
 | `name` | `varchar(255)` | 服务名称 |
 | `service_type` | `varchar(64)` | 服务类型，如 Java/Python |
 | `runtime_type` | `varchar(64)` | 运行时类型 |
-| `owner_account_id` | `varchar(64)` | 负责人账号 |
+| `owner_user_id` | `varchar(64)` | 负责人用户 id |
 | `latest_version` | `varchar(32)` | 最新版本号 |
 | `status` | `tinyint` | 状态 |
 | `gmt_create` | `datetime` | 创建时间 |
@@ -1075,7 +1100,7 @@
 | `session_id` | `varchar(64)` | 业务主键，会话 id |
 | `agent_id` | `varchar(64)` | 外键，关联应用 |
 | `agent_version` | `varchar(32)` | 应用版本 |
-| `account_id` | `varchar(64)` | 外键，关联用户 |
+| `user_id` | `varchar(64)` | 外键，关联用户 |
 | `session_title` | `varchar(255)` | 会话标题 |
 | `source_type` | `varchar(64)` | 会话来源 |
 | `gmt_last_active` | `datetime` | 最后活跃时间 |
@@ -1104,33 +1129,22 @@
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `task_id` | `varchar(64)` | 业务主键，任务 id |
-| `conversation_id` | `varchar(64)` | 会话/对话 id |
+| `session_id` | `varchar(64)` | 外键，关联会话 |
+| `trigger_message_id` | `varchar(64)` | 外键，关联触发本次执行的用户消息 |
+| `response_message_id` | `varchar(64)` | 外键，关联本次执行生成的最终回复消息 |
 | `agent_id` | `varchar(64)` | 外键，关联应用 |
 | `agent_version` | `varchar(32)` | 外键的一部分，关联应用版本 |
 | `task_type` | `varchar(64)` | 任务类型 |
-| `trigger_event_id` | `varchar(64)` | 触发事件 id |
-| `priority` | `int` | 优先级 |
+| `task_name` | `varchar(255)` | 任务名称/本轮执行摘要 |
 | `progress` | `int` | 执行进度 |
 | `input_payload` | `json` | 输入数据 |
 | `output_payload` | `json` | 输出数据 |
+| `final_result` | `json/longtext` | 本次执行最终结果摘要 |
 | `error_code` | `varchar(64)` | 错误码 |
 | `error_message` | `varchar(1024)` | 错误信息 |
 | `gmt_start` | `datetime` | 开始时间 |
 | `gmt_end` | `datetime` | 结束时间 |
 | `status` | `tinyint` | 状态 |
-
-### 8.19 `sophic_agent_execution_plan`
-
-| 属性名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `task_id` | `varchar(64)` | 外键，关联 `sophic_agent_task.task_id` |
-| `plan_id` | `varchar(64)` | 业务主键，计划 id |
-| `plan_content` | `json/longtext` | 执行计划内容 |
-| `decision_policy` | `json` | 决策策略 |
-| `risk_review` | `json` | 风险审查结果 |
-| `status` | `tinyint` | 状态 |
-| `gmt_create` | `datetime` | 创建时间 |
 
 ### 8.20 `sophic_agent_execution_step`
 
@@ -1138,28 +1152,19 @@
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `task_id` | `varchar(64)` | 外键，关联任务 |
-| `plan_id` | `varchar(64)` | 外键，关联执行计划 |
 | `step_no` | `int` | 步骤序号 |
 | `step_id` | `varchar(64)` | 业务主键，步骤 id |
 | `step_type` | `varchar(64)` | 步骤类型 |
 | `step_name` | `varchar(255)` | 步骤名称 |
-| `step_input` | `json` | 输入数据 |
-| `step_output` | `json` | 输出数据 |
+| `step_desc` | `varchar(1024)` | 步骤说明，描述该步骤做了什么 |
+| `executor_type` | `varchar(64)` | 执行器类型，如 LLM/TOOL/MCP/RAG/WORKFLOW/CODE |
+| `tool_ref` | `varchar(128)` | 工具或能力引用标识 |
+| `input_snapshot` | `json` | 步骤输入快照 |
+| `output_snapshot` | `json` | 步骤输出快照 |
+| `thought_snapshot` | `json/longtext` | 中间推理、路由判断、检索摘要等过程信息 |
 | `cost_ms` | `bigint` | 执行耗时毫秒 |
 | `error_code` | `varchar(64)` | 错误码 |
 | `error_message` | `varchar(1024)` | 错误信息 |
-| `status` | `tinyint` | 状态 |
-
-### 8.21 `sophic_agent_task_queue`
-
-| 属性名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `queue_name` | `varchar(64)` | 队列名称 |
-| `task_id` | `varchar(64)` | 外键，关联任务 |
-| `priority` | `int` | 优先级 |
-| `scheduler_node` | `varchar(64)` | 调度节点 |
-| `gmt_schedule` | `datetime` | 调度时间 |
 | `status` | `tinyint` | 状态 |
 
 ### 8.22 `sophic_agent_knowledge_base`
@@ -1224,20 +1229,26 @@
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `plugin_id` | `varchar(64)` | 插件/工具来源 id |
 | `tool_id` | `varchar(64)` | 业务主键，工具 id |
 | `tool_code` | `varchar(64)` | 工具编码 |
 | `name` | `varchar(255)` | 工具名称 |
 | `description` | `varchar(4096)` | 工具描述 |
 | `tool_type` | `varchar(64)` | 工具类型 |
 | `source` | `varchar(64)` | 来源 |
+| `source_asset_type` | `varchar(32)` | 来源资产类型，支持 `AGENT`、`WORKFLOW` |
+| `source_asset_id` | `varchar(64)` | 来源资产 id |
+| `source_asset_version` | `varchar(32)` | 来源资产版本 |
+| `publish_id` | `varchar(64)` | 外键，关联 `sophic_agent_publish_record.publish_id` |
 | `api_schema` | `longtext` | 接口 schema |
 | `config` | `longtext` | 工具配置 |
+| `test_status` | `tinyint` | 测试状态，1 未测试/2 通过/3 失败 |
 | `enabled` | `tinyint` | 是否启用 |
 | `latest_version` | `varchar(32)` | 最新版本 |
 | `status` | `tinyint` | 状态 |
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
+| `creator` | `varchar(64)` | 创建人 |
+| `modifier` | `varchar(64)` | 修改人 |
 
 ### 8.26 `sophic_agent_tool_version`
 
@@ -1277,7 +1288,7 @@
 | `deploy_env` | `varchar(16)` | 部署环境，如 local/remote |
 | `type` | `varchar(32)` | 服务类型，如 OFFICIAL/CUSTOMER |
 | `deploy_config` | `text/json` | 部署配置 |
-| `account_id` | `varchar(64)` | 所有者账号 |
+| `user_id` | `varchar(64)` | 所有者用户 id |
 | `status` | `tinyint` | 状态 |
 | `biz_type` | `varchar(512)` | 业务类型 |
 | `detail_config` | `text/json` | 服务详情配置 |
@@ -1285,6 +1296,8 @@
 | `install_type` | `varchar(32)` | 安装方式，如 npx/uvx/sse |
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
+| `creator` | `varchar(64)` | 创建人 |
+| `modifier` | `varchar(64)` | 修改人 |
 
 ### 8.29 `sophic_agent_mcp_server_instance`
 
@@ -1312,16 +1325,6 @@
 | `metadata` | `json` | 扩展信息 |
 | `expired_at` | `datetime` | 过期时间 |
 
-### 8.31 `sophic_agent_memory_working`
-
-| 属性名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `task_id` | `varchar(64)` | 外键，关联任务 |
-| `memory_key` | `varchar(128)` | 工作记忆键 |
-| `memory_value` | `json/longtext` | 工作记忆值 |
-| `gmt_create` | `datetime` | 创建时间 |
-
 ### 8.32 `sophic_agent_memory_library`
 
 | 属性名 | 类型 | 说明 |
@@ -1331,7 +1334,7 @@
 | `library_code` | `varchar(64)` | 记忆库编码 |
 | `name` | `varchar(255)` | 名称 |
 | `description` | `varchar(4096)` | 描述 |
-| `owner_account_id` | `varchar(64)` | 所有者 |
+| `owner_user_id` | `varchar(64)` | 所有者 |
 | `default_rule_id` | `varchar(64)` | 默认规则 id，外键关联 `sophic_agent_memory_rule.rule_id` |
 | `permission_scope` | `varchar(64)` | 权限范围 |
 | `status` | `tinyint` | 状态 |
@@ -1391,25 +1394,13 @@
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `entity_id` | `varchar(64)` | 业务主键，实体 id |
+| `entity_id` | `varchar(64)` | 业务主键，应用记忆归档 id |
 | `memory_library_id` | `varchar(64)` | 外键，关联记忆库 |
-| `entity_type` | `varchar(64)` | 实体类型 |
-| `entity_name` | `varchar(255)` | 实体名称 |
-| `entity_summary` | `text` | 实体摘要 |
+| `agent_id` | `varchar(64)` | 外键，关联应用（智能体或工作流） |
+| `entity_type` | `varchar(64)` | 归档对象类型，建议与应用类型保持一致 |
+| `entity_name` | `varchar(255)` | 归档对象名称，通常取应用名称 |
+| `entity_summary` | `text` | 应用记忆归档摘要 |
 | `metadata` | `json` | 扩展信息 |
-| `status` | `tinyint` | 状态 |
-
-### 8.37 `sophic_agent_memory_extract_log`
-
-| 属性名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `extract_id` | `varchar(64)` | 业务主键，抽取日志 id |
-| `memory_library_id` | `varchar(64)` | 外键，关联记忆库 |
-| `task_id` | `varchar(64)` | 外键，关联任务 |
-| `rule_id` | `varchar(64)` | 外键，关联记忆规则 |
-| `source_text` | `longtext` | 抽取源文本 |
-| `extract_result` | `json/longtext` | 抽取结果 |
 | `status` | `tinyint` | 状态 |
 
 ### 8.38 `sophic_agent_memory_recall_test`
@@ -1546,29 +1537,31 @@
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
+| `agent_id` | `varchar(64)` | 外键，关联应用（智能体或工作流） |
 | `rule_id` | `varchar(64)` | 业务主键，规则 id |
 | `rule_code` | `varchar(64)` | 规则编码 |
-| `rule_type` | `varchar(64)` | 规则类型，如数据干预/规则干预 |
+| `rule_type` | `varchar(64)` | 规则类型，如 INPUT/OUTPUT |
 | `scope_type` | `varchar(64)` | 作用范围类型 |
 | `scope_code` | `varchar(64)` | 作用范围编码 |
-| `match_config` | `json` | 匹配配置 |
-| `action_config` | `json` | 动作配置 |
+| `match_config` | `json` | 正则匹配配置 |
+| `action_config` | `json` | 替换、屏蔽等动作配置 |
 | `priority` | `int` | 优先级 |
 | `enabled` | `tinyint` | 是否启用 |
 | `status` | `tinyint` | 状态 |
 
-### 8.47 `sophic_agent_guardrail_record`
+### 8.47 `sophic_agent_guardrail_fixed_reply`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `record_id` | `varchar(64)` | 业务主键，命中记录 id |
-| `rule_id` | `varchar(64)` | 外键，关联 `sophic_agent_guardrail_rule.rule_id` |
-| `task_id` | `varchar(64)` | 外键，关联任务 |
-| `session_id` | `varchar(64)` | 外键，关联会话 |
-| `input_snapshot` | `json/longtext` | 输入快照 |
-| `output_snapshot` | `json/longtext` | 输出快照 |
-| `action_result` | `json` | 处理结果 |
+| `agent_id` | `varchar(64)` | 外键，关联应用（智能体或工作流） |
+| `record_id` | `varchar(64)` | 业务主键，固定输出配置 id |
+| `rule_id` | `varchar(64)` | 关联规则 id，可为空，用于标识关联的规则干预配置 |
+| `task_id` | `varchar(64)` | 关联任务，可为空 |
+| `session_id` | `varchar(64)` | 关联会话，可为空 |
+| `input_snapshot` | `json/longtext` | 固定问题或问题特征配置 |
+| `output_snapshot` | `json/longtext` | 固定输出内容配置 |
+| `action_result` | `json` | 干预动作配置结果，如命中阈值、回复策略等 |
 | `gmt_create` | `datetime` | 创建时间 |
 
 ### 8.48 `sophic_agent_agent_feedback`
@@ -1579,25 +1572,12 @@
 | `agent_id` | `varchar(64)` | 外键，关联应用 |
 | `task_id` | `varchar(64)` | 外键，关联任务 |
 | `session_id` | `varchar(64)` | 外键，关联会话 |
-| `account_id` | `varchar(64)` | 外键，关联用户 |
+| `user_id` | `varchar(64)` | 外键，关联用户 |
 | `rating` | `int` | 评分 |
 | `feedback_type` | `varchar(64)` | 反馈类型 |
 | `content` | `text` | 反馈内容 |
 | `status` | `tinyint` | 状态 |
 | `gmt_create` | `datetime` | 创建时间 |
-
-### 8.49 `sophic_agent_deploy_plan`
-
-| 属性名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `plan_id` | `varchar(64)` | 业务主键，部署计划 id |
-| `env` | `varchar(64)` | 部署环境 |
-| `plan_content` | `json/longtext` | 计划内容 |
-| `status` | `tinyint` | 状态 |
-| `operator_id` | `varchar(64)` | 操作人 |
-| `gmt_start` | `datetime` | 开始时间 |
-| `gmt_end` | `datetime` | 结束时间 |
 
 ### 8.50 `sophic_agent_publish_record`
 
@@ -1626,7 +1606,7 @@
 | `dataset_name` | `varchar(255)` | 评测集名称 |
 | `dataset_type` | `varchar(64)` | 评测集类型 |
 | `description` | `varchar(4096)` | 描述 |
-| `owner_account_id` | `varchar(64)` | 所有者 |
+| `owner_user_id` | `varchar(64)` | 所有者 |
 | `status` | `tinyint` | 状态 |
 
 ### 8.52 `sophic_agent_eval_dataset_item`
@@ -1694,3 +1674,49 @@
 | `gmt_start` | `datetime` | 开始时间 |
 | `gmt_end` | `datetime` | 结束时间 |
 | `status` | `tinyint` | 状态 |
+
+### 8.56 `smc_application`（已有）
+
+| 属性名 | 类型 | 说明 |
+|---|---|---|
+| `application_id` | `varchar(32)` | 主键，应用 id |
+| `application_name` | `varchar(50)` | 应用名 |
+| `owner` | `varchar(32)` | 负责人 |
+| `create_time` | `timestamp` | 创建时间 |
+| `note` | `varchar(255)` | 描述 |
+| `seq` | `int` | 排序 |
+
+### 8.57 `smc_service`（已有）
+
+| 属性名 | 类型 | 说明 |
+|---|---|---|
+| `id` | `varchar(64)` | 主键，服务 id |
+| `service_name` | `varchar(255)` | 服务名称 |
+| `source` | `varchar(32)` | 服务来源，如 Nacos |
+| `params` | `varchar(1024)` | 服务启动参数，用于运行控制 |
+| `type` | `varchar(32)` | 服务类型 |
+| `create_time` | `datetime` | 服务创建时间 |
+| `update_time` | `datetime` | 服务更新时间 |
+| `note` | `varchar(255)` | 服务描述 |
+| `version` | `varchar(255)` | 版本 |
+| `service_info` | `varchar(50)` | 通用服务信息 |
+| `ref_application` | `varchar(50)` | 外键，关联 `smc_application.application_id`，用于归属运行应用 |
+| `seq` | `int` | 排序 |
+
+### 8.58 `smc_instance`（已有）
+
+| 属性名 | 类型 | 说明 |
+|---|---|---|
+| `instance_id` | `varchar(32)` | 主键，服务实例 id |
+| `service_id` | `varchar(255)` | 外键，关联服务 id |
+| `ip` | `varchar(64)` | IP 地址 |
+| `port` | `int` | 端口 |
+| `type` | `varchar(64)` | 类型 |
+| `instance_mode` | `varchar(64)` | 运行模式 |
+| `fingerprint` | `varchar(64)` | 服务指纹 |
+| `enabled` | `tinyint(1)` | 是否可用 |
+| `update_time` | `datetime` | 更新时间 |
+| `insert_time` | `datetime` | 插入时间 |
+| `version` | `varchar(50)` | 版本 |
+| `last_offline_time` | `datetime` | 最近离线时间 |
+| `weight` | `int` | 权重，默认 1 |
