@@ -1,5 +1,9 @@
 -- SophicAgent V2 incremental schema
 -- Run after 03_schema_v1.sql
+-- Incremental schema follows the same primary key convention:
+-- 1. New tables use `id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT` as physical primary key.
+-- 2. Main business entities keep `xxx_id` as business identifier and optionally `xxx_code` as readable code.
+-- 3. Relation/fact tables are not forced to add UUID business keys; use composite unique keys or indexes when needed.
 
 SET NAMES utf8mb4;
 

@@ -2,15 +2,19 @@
 
 ## 1. 设计原则
 
-- 主键规范：统一使用 `id bigint unsigned auto_increment`，业务主键使用 `xxx_id` / `xxx_code`。
+- 主键规范：新增表统一使用 `id bigint unsigned auto_increment` 作为物理主键。
+- 业务标识规范：主业务实体表补充 `xxx_id` 作为业务主键，必要时补充 `xxx_code` 作为业务编码。
+- 主键适用边界：既有存量表保持现状不强制改造；本设计中新建 SophicAgent 表默认执行“自增物理主键 + 业务 ID/业务编码”方案。
+- 关联规范：业务层表关联优先使用 `xxx_id` 等业务标识，不直接依赖自增 `id` 作为对外标识。
+- 弱实体规范：多对多关系表、中间表、统计事实表可仅保留自增主键，并通过组合唯一约束或组合索引保证业务去重。
 - 状态规范：统一使用 `status`；需要开关控制时补充 `enabled`。
 - 时间规范：统一使用 `gmt_create`、`gmt_modified`；运行态补充 `gmt_start`、`gmt_end`。
 - 时间字段说明：`gmt_*` 仅作为统一时间字段命名规范，不强制表示 GMT/UTC 时区，实际时区以系统存储与应用约定为准。
 - 扩展字段：复杂配置优先使用 `json` 或 `text/longtext`，承载快照、策略、DSL、扩展元数据。
 - 约束规范：业务主键默认要求唯一约束；跨版本对象默认要求组合唯一约束；多对多关系表默认要求去重唯一约束。
 - 账号权限域：沿用现有权限与认证服务的既有模型和数据表，SophicAgent 只做业务关联，不改造该域设计。
-- 应用与设计器域：参考 `spring-ai-alibaba-admin` 的 `application`、`application_version`、`application_component`、`agent_schema` 设计。
-- 工作流设计：V1 不优先拆 `workflow_definition / workflow_version / workflow_node / workflow_edge` 独立结构表，完整流程配置优先存放于 `sophic_agent_application_version.config_snapshot`。
+- 应用与设计器域：参考 `spring-ai-alibaba-admin` 的 `application`、`application_version`、`application_component` 设计。
+- 工作流设计：V1 不优先拆 `workflow_definition / workflow_version / workflow_node / workflow_edge` 独立结构表，完整流程配置优先存放于 `sa_application_version.config_snapshot`。
 - MCP、知识库：字段设计优先参考 admin 项目现有 `mcp_server`、`knowledge_base`、`document` 表的设计方式。
 - 标签设计：支持标签能力的资源统一通过标签主表和标签绑定表管理，资源表和样本表均不再保留 `tags` 字段，标签关系以绑定表为唯一事实来源。
 
@@ -31,74 +35,73 @@
 - `priv_group_role_relation`（已有）
 - `priv_role_permission_relation`（已有）
 - `priv_user_group_relation`（已有）
-- `sophic_agent_api_key`
-- `sophic_agent_resource`
-- `sophic_agent_resource_acl`
+- `sa_api_key`
+- `sa_resource`
+- `sa_resource_acl`
 
 ### 2.2 应用与设计器域
 
-- `sophic_agent_agent_template`
-- `sophic_agent_application`
-- `sophic_agent_application_version`
-- `sophic_agent_agent_schema`
-- `sophic_agent_application_binding`
-- `sophic_agent_application_binding_item`
-- `sophic_agent_high_code_service`
-- `sophic_agent_high_code_service_version`
-- `sophic_agent_guardrail_rule`
-- `sophic_agent_guardrail_fixed_reply`
+- `sa_agent_template`
+- `sa_application`
+- `sa_application_version`
+- `sa_application_binding`
+- `sa_application_binding_item`
+- `sa_high_code_service`
+- `sa_high_code_service_version`
+- `sa_guardrail_rule`
+- `sa_guardrail_fixed_reply`
 
 ### 2.3 运行时域
 
-- `sophic_agent_session`
-- `sophic_agent_session_message`
-- `sophic_agent_task`
-- `sophic_agent_high_code_deploy_record`
-- `sophic_agent_high_code_operation_log`
-- `sophic_agent_execution_step`
+- `sa_session`
+- `sa_session_message`
+- `sa_task`
+- `sa_high_code_deploy_record`
+- `sa_high_code_operation_log`
+- `sa_execution_step`
 - `smc_application`（已有）
 - `smc_service`（已有）
 - `smc_instance`（已有）
 
 ### 2.4 能力资产域
 
-- `sophic_agent_knowledge_base`
-- `sophic_agent_knowledge_document`
-- `sophic_agent_knowledge_chunk`
-- `sophic_agent_tool`
-- `sophic_agent_tool_version`
-- `sophic_agent_tool_debug_record`
-- `sophic_agent_mcp_server`
-- `sophic_agent_mcp_server_instance`
-- `sophic_agent_memory_short_term`
-- `sophic_agent_memory_library`
-- `sophic_agent_memory_rule`
-- `sophic_agent_memory_long_term`
-- `sophic_agent_memory_hit_record`
-- `sophic_agent_memory_entity`
-- `sophic_agent_memory_recall_test`
-- `sophic_agent_datasource`
-- `sophic_agent_datasource_table`
-- `sophic_agent_datasource_field`
-- `sophic_agent_datasource_relation`
-- `sophic_agent_datasource_semantic_model`
+- `sa_knowledge_base`
+- `sa_knowledge_document`
+- `sa_knowledge_chunk`
+- `sa_tool`
+- `sa_tool_version`
+- `sa_tool_debug_record`
+- `sa_mcp_server`
+- `sa_mcp_server_instance`
+- `sa_memory_short_term`
+- `sa_memory_library`
+- `sa_memory_rule`
+- `sa_memory_long_term`
+- `sa_memory_hit_record`
+- `sa_memory_entity`
+- `sa_memory_recall_test`
+- `sa_datasource`
+- `sa_datasource_table`
+- `sa_datasource_field`
+- `sa_datasource_relation`
+- `sa_datasource_semantic_model`
 
 ### 2.5 治理观测与运营域
 
-- `sophic_agent_model_provider`
-- `sophic_agent_model`
-- `sophic_agent_model_config`
-- `sophic_agent_invoke_log`
-- `sophic_agent_runtime_metric`
-- `sophic_agent_agent_feedback`
-- `sophic_agent_tag`
-- `sophic_agent_tag_binding`
-- `sophic_agent_publish_record`
-- `sophic_agent_eval_dataset`
-- `sophic_agent_eval_dataset_item`
-- `sophic_agent_eval_task`
-- `sophic_agent_eval_result`
-- `sophic_agent_perf_test_task`
+- `sa_model_provider`
+- `sa_model`
+- `sa_model_config`
+- `sa_invoke_log`
+- `sa_runtime_metric`
+- `sa_agent_feedback`
+- `sa_tag`
+- `sa_tag_binding`
+- `sa_publish_record`
+- `sa_eval_dataset`
+- `sa_eval_dataset_item`
+- `sa_eval_task`
+- `sa_eval_result`
+- `sa_perf_test_task`
 
 ## 3. 表设计
 
@@ -145,13 +148,13 @@
 - `priv_user_group_relation`（已有）
   - 用户组关联表。
   - 关键字段：`user_id`、`group_id`
-- `sophic_agent_api_key`
+- `sa_api_key`
   - SophicAgent 侧 API 调用凭证表。
   - 关键字段：`group_id`、`user_id`、`api_key`、`description`、`expired_at`、`status`
-- `sophic_agent_resource`
+- `sa_resource`
   - 统一资源注册表，用于权限控制时对应用、工具、知识库、数据源、MCP 服务等资源进行统一标识和授权关联。
 - 关键字段：`id`、`resource_id`、`resource_name`、`resource_type`、`creator_id`、`create_time`、`update_time`、`owner_user_id`、`ext_config`、`status`
-- `sophic_agent_resource_acl`
+- `sa_resource_acl`
   - 资源访问控制表，用于实现具体业务资源的读写权限分离，授权粒度支持个人、组、研究所。
   - 关键字段：`resource_id`、`subject_type`、`subject_id`、`permission_type`、`grant_type`、`status`、`creator`、`modifier`
 
@@ -159,7 +162,7 @@
 
 - `priv_menu_resource` 和 `priv_menu_access` 负责菜单、页面入口、按钮元素等前台可见功能项的控制。
 - `priv_permission`、`priv_role_permission_relation` 负责功能权限点控制。
-- `sophic_agent_resource` 与后续资源 ACL 负责具体业务资源的读写权限控制。
+- `sa_resource` 与后续资源 ACL 负责具体业务资源的读写权限控制。
 - 三者职责边界如下：
   - 菜单权限：控制“能否看到什么页面/菜单/按钮”
   - 功能权限：控制“能否调用什么功能接口”
@@ -198,7 +201,7 @@
 
 #### 资源权限
 
-- 由 `sophic_agent_resource` 与 `sophic_agent_resource_acl` 承载。
+- 由 `sa_resource` 与 `sa_resource_acl` 承载。
 - 用于控制：
   - 能否读取某个具体业务对象
   - 能否修改某个具体业务对象
@@ -222,8 +225,8 @@
 
 1. 用户登录后，先通过现有账号权限域完成身份认证。
 2. 根据用户所属组、角色和权限点判断菜单与功能权限。
-3. 当访问具体资源时，定位到 `sophic_agent_resource.resource_id`。
-4. 读取 `sophic_agent_resource_acl`，判断当前用户、所属组或所属研究所是否拥有对应 `READ/WRITE` 权限。
+3. 当访问具体资源时，定位到 `sa_resource.resource_id`。
+4. 读取 `sa_resource_acl`，判断当前用户、所属组或所属研究所是否拥有对应 `READ/WRITE` 权限。
 5. 功能权限通过后且资源权限命中后，才允许执行具体业务操作。
 
 #### 读写权限约定
@@ -243,7 +246,7 @@
 
 #### 默认授权建议
 
-- 新建资源时，建议同步在 `sophic_agent_resource` 中注册资源。
+- 新建资源时，建议同步在 `sa_resource` 中注册资源。
 - 同时写入默认 ACL：
   - 创建人 `USER + WRITE`
   - 所属研究所 `INSTITUTE + READ`
@@ -251,52 +254,50 @@
 
 ### 3.2 应用与设计器域
 
-- `sophic_agent_agent_template`
+- `sa_agent_template`
   - 平台通用智能体模板表，用于新建智能体时提供初始化蓝本，不承载发布后的智能体实例。
   - 关键字段：`template_id`、`template_code`、`template_name`、`template_type`、`scene_type`、`description`、`agent_type`、`schema_snapshot`、`config_snapshot`、`input_schema`、`output_schema`、`icon`、`sort_no`、`enabled`、`status`
-- `sophic_agent_application`
+- `sa_application`
   - 应用主表，参考 admin 的 `application` 表，统一承载通用智能体、专用智能体、工作流型应用。
   - 关键字段：`agent_id`、`agent_code`、`name`、`description`、`icon`、`source`、`type`、`agent_scope`、`scene_type`、`latest_version`、`published_version`、`status`、`creator`、`modifier`
-- `sophic_agent_application_version`
+- `sa_application_version`
   - 应用版本表，参考 admin 的 `application_version` 表。
-  - 关键字段：`agent_id`、`version`、`version_desc`、`config_snapshot`、`runtime_config`、`input_schema`、`output_schema`、`dsl_schema`、`change_log`、`base_version`、`status`、`creator`、`modifier`
-- `sophic_agent_agent_schema`
-  - Agent 特有结构化定义表，参考 admin 的 `agent_schema` 表，仅在 `type=agent` 时使用。
-  - 关键字段：`agent_schema_id`、`agent_id`、`version`、`name`、`description`、`agent_type`、`instruction`、`input_keys`、`output_key`、`handle_config`、`sub_agents`、`yaml_schema`、`enabled`、`status`
-- `sophic_agent_application_binding`
+  - 关键字段：`agent_id`、`version`、`version_desc`、`config_snapshot`、`runtime_config`、`input_schema`、`output_schema`、`instruction`、`input_keys`、`output_key`、`handle_config`、`sub_agents`、`yaml_schema`、`dsl_schema`、`change_log`、`base_version`、`status`、`creator`、`modifier`
+- `sa_application_binding`
   - 应用挂载组件表，对标 admin 的 `application_component`，用于承载“应用上挂了什么组件”。
   - 关键字段：`binding_id`、`agent_id`、`agent_version`、`resource_type`、`resource_id`、`resource_name`、`binding_source`、`sort_no`、`enabled`、`binding_config`、`status`
-- `sophic_agent_application_binding_item`
+- `sa_application_binding_item`
   - 挂载组件详细信息表，对应 admin `reference` 的细粒度语义。
   - 关键字段：`binding_id`、`item_type`、`item_id`、`item_name`、`item_path`、`item_config`、`sort_no`、`status`
-- `sophic_agent_high_code_service`
+- `sa_high_code_service`
   - 高代码服务注册主表，用于从运行服务中筛选、登记高代码服务，并作为版本管理入口。
 - 关键字段：`service_id`、`service_code`、`name`、`service_type`、`runtime_type`、`owner_user_id`、`latest_version`、`status`
-- `sophic_agent_high_code_service_version`
+- `sa_high_code_service_version`
   - 高代码服务版本表，用于管理高代码服务不同版本的制品与部署配置。
   - 关键字段：`service_id`、`version`、`package_type`、`package_uri`、`deploy_config`、`input_schema`、`output_schema`、`change_log`、`status`
-- `sophic_agent_guardrail_rule`
+- `sa_guardrail_rule`
   - 应用规则干预配置表，用于对输入和输出内容执行正则匹配、替换、屏蔽等规则干预。
   - 关键字段：`agent_id`、`rule_id`、`rule_code`、`rule_type`、`scope_type`、`scope_code`、`match_config`、`action_config`、`priority`、`enabled`、`status`
-- `sophic_agent_guardrail_fixed_reply`
+- `sa_guardrail_fixed_reply`
   - 应用固定问题输出配置表，用于对固定问题或相似问题配置预设回答内容。
   - 关键字段：`agent_id`、`record_id`、`rule_id`、`input_snapshot`、`output_snapshot`、`action_config`、`priority`、`enabled`、`status`、`gmt_create`
 
 说明：
 
-- `sophic_agent_agent_template` 用于平台提供的通用智能体模板，不用于承载发布后的智能体。
-- `sophic_agent_application_binding` 用于承载挂载组件。
-- `sophic_agent_application_binding_item` 用于承载挂载组件的详细信息。
+- `sa_agent_template` 用于平台提供的通用智能体模板，不用于承载发布后的智能体。
+- `sa_application_version` 同时承载版本级运行配置和 Agent 专属结构定义；当 `type=agent` 时，`instruction`、`input_keys`、`output_key`、`handle_config`、`sub_agents`、`yaml_schema` 等字段在版本表内维护。
+- `sa_application_binding` 用于承载挂载组件。
+- `sa_application_binding_item` 用于承载挂载组件的详细信息。
 - `type=workflow` 时，完整工作流 DSL、节点、边、画布和调试配置统一进入 `config_snapshot`。
-- `sophic_agent_high_code_service.service_id` 建议直接复用 `smc_service.id`，用于和运行态服务建立稳定映射。
-- `sophic_agent_high_code_service.service_code` 作为业务侧服务编码，用于展示、检索、发布和权限控制，不要求等于 `smc_service.id`。
-- `sophic_agent_guardrail_rule` 属于应用配置的一部分，一个应用可以配置多条护栏规则。
-- `sophic_agent_guardrail_rule` 负责输入/输出规则干预，典型能力为正则匹配与替换。
-- `sophic_agent_guardrail_fixed_reply` 负责固定问题输出配置，属于应用数据干预能力的一部分，仅与应用（agent/workflow）配置绑定，不关联运行态任务或会话。
+- `sa_high_code_service.service_id` 建议直接复用 `smc_service.id`，用于和运行态服务建立稳定映射。
+- `sa_high_code_service.service_code` 作为业务侧服务编码，用于展示、检索、发布和权限控制，不要求等于 `smc_service.id`。
+- `sa_guardrail_rule` 属于应用配置的一部分，一个应用可以配置多条护栏规则。
+- `sa_guardrail_rule` 负责输入/输出规则干预，典型能力为正则匹配与替换。
+- `sa_guardrail_fixed_reply` 负责固定问题输出配置，属于应用数据干预能力的一部分，仅与应用（agent/workflow）配置绑定，不关联运行态任务或会话。
 
 #### 智能体模板与复制边界
 
-- `sophic_agent_agent_template`
+- `sa_agent_template`
   - 用于平台提供的通用智能体模板。
   - 用于“新建智能体”时提供初始化蓝本。
   - 不承载已发布智能体实例。
@@ -308,22 +309,21 @@
 #### 智能体复制机制
 
 - 复制来源
-  - `sophic_agent_application`
-  - `sophic_agent_application_version`
-  - `sophic_agent_agent_schema`
-  - `sophic_agent_application_binding`
-  - `sophic_agent_application_binding_item`
+  - `sa_application`
+  - `sa_application_version`
+  - `sa_application_binding`
+  - `sa_application_binding_item`
 - 复制规则
   - 生成新的 `agent_id`、`agent_code`
   - 复制应用基础信息，但状态初始化为草稿
   - 复制指定来源版本为新应用的初始版本
-  - 复制对应的 `agent_schema`
+  - 复制版本中的 Agent 结构定义字段
   - 复制挂载组件及其详细信息
   - 不复用原应用的发布记录、评测记录、运行记录、反馈记录
 - 复制结果
-  - 形成一个新的 `sophic_agent_application`
-  - 形成一个新的初始 `sophic_agent_application_version`
-  - 形成与之对应的一套 `agent_schema`、`binding`、`binding_item`
+  - 形成一个新的 `sa_application`
+  - 形成一个新的初始 `sa_application_version`
+  - 形成与之对应的一套 `binding`、`binding_item`
 
 #### 发布机制
 
@@ -337,9 +337,9 @@
   - 智能体应用
   - 工作流应用
 - 落库方式
-  - 更新 `sophic_agent_application.published_version`
-  - 更新 `sophic_agent_application.status`
-  - 写入 `sophic_agent_publish_record`
+  - 更新 `sa_application.published_version`
+  - 更新 `sa_application.status`
+  - 写入 `sa_publish_record`
 - 发布记录内容
   - 发布对象类型 `asset_type=APPLICATION`
   - 发布对象 `asset_id`
@@ -359,9 +359,9 @@
   - 工作流应用
   - 高代码服务
 - 落库方式
-  - 写入 `sophic_agent_publish_record`
-  - 在 `sophic_agent_resource` 中注册或更新统一资源
-  - 如需在工具中心独立管理，可在 `sophic_agent_tool` / `sophic_agent_tool_version` 中生成对应工具定义
+  - 写入 `sa_publish_record`
+  - 在 `sa_resource` 中注册或更新统一资源
+  - 如需在工具中心独立管理，可在 `sa_tool` / `sa_tool_version` 中生成对应工具定义
 - 发布记录内容
   - 发布对象类型 `asset_type=APPLICATION/HIGH_CODE_SERVICE`
   - 发布类型 `publish_type=TOOL`
@@ -376,28 +376,28 @@
 
 #### 发布补充说明
 
-- 发布记录统一由 `sophic_agent_publish_record` 承载。
+- 发布记录统一由 `sa_publish_record` 承载。
 - 发布不改变历史版本内容，发布动作只改变“哪个版本被正式使用”。
-- 发布为工具时，建议以 `sophic_agent_resource` 作为统一资源锚点，以便后续权限控制和复用管理。
+- 发布为工具时，建议以 `sa_resource` 作为统一资源锚点，以便后续权限控制和复用管理。
 
 ### 3.3 运行时域
 
-- `sophic_agent_session`
+- `sa_session`
   - 会话主表，用于承载会话级状态。
 - 关键字段：`session_id`、`agent_id`、`agent_version`、`user_id`、`session_title`、`source_type`、`gmt_last_active`、`status`
-- `sophic_agent_session_message`
+- `sa_session_message`
   - 会话消息表。
   - 关键字段：`session_id`、`message_id`、`seq_no`、`role`、`content`、`content_type`、`token_usage`、`metadata`、`gmt_create`
-- `sophic_agent_task`
+- `sa_task`
   - 单次执行主表，用于承载“一条用户消息触发的一次智能体/工作流执行”。
   - 关键字段：`task_id`、`session_id`、`trigger_message_id`、`response_message_id`、`agent_id`、`agent_version`、`task_type`、`task_name`、`input_payload`、`output_payload`、`final_result`、`progress`、`error_code`、`error_message`、`gmt_start`、`gmt_end`、`status`
-- `sophic_agent_high_code_deploy_record`
+- `sa_high_code_deploy_record`
   - 高代码部署记录表，用于承载 jar/docker 制品部署、回滚、发布结果和部署详情。
   - 关键字段：`deploy_id`、`service_id`、`service_version`、`package_type`、`package_uri`、`deploy_env`、`deploy_type`、`operator_id`、`result_status`、`result_message`、`gmt_start`、`gmt_end`
-- `sophic_agent_high_code_operation_log`
+- `sa_high_code_operation_log`
   - 高代码操作流水表，用于记录启动、停止、重启、扩缩容、下线等运行控制动作。
   - 关键字段：`operation_id`、`service_id`、`instance_id`、`operation_type`、`operator_id`、`request_payload`、`result_payload`、`result_status`、`gmt_create`
-- `sophic_agent_execution_step`
+- `sa_execution_step`
   - 执行步骤明细表，用于逐步记录“执行步骤是什么、做了什么、结果是什么”。
   - 关键字段：`task_id`、`step_no`、`step_id`、`step_type`、`step_name`、`step_desc`、`executor_type`、`tool_ref`、`input_snapshot`、`output_snapshot`、`thought_snapshot`、`cost_ms`、`error_code`、`error_message`、`status`
 - `smc_application`（已有）
@@ -412,157 +412,157 @@
 
 说明：
 
-- 一次 `sophic_agent_session_message(role=USER)` 通常触发一次 `sophic_agent_task`。
-- 一次 `sophic_agent_task` 对应本轮对话的一次完整执行，最终可产出一条 `response_message_id` 对应的回复消息。
-- 一次 `sophic_agent_task` 下可以存在多个 `sophic_agent_execution_step`，用于完整还原本轮执行轨迹。
-- `sophic_agent_execution_step` 负责按步骤留痕，记录每一步执行动作、输入、输出和结果。
+- 一次 `sa_session_message(role=USER)` 通常触发一次 `sa_task`。
+- 一次 `sa_task` 对应本轮对话的一次完整执行，最终可产出一条 `response_message_id` 对应的回复消息。
+- 一次 `sa_task` 下可以存在多个 `sa_execution_step`，用于完整还原本轮执行轨迹。
+- `sa_execution_step` 负责按步骤留痕，记录每一步执行动作、输入、输出和结果。
 - `smc_application`、`smc_service`、`smc_instance` 为已有运行管理表，继续复用，不在 SophicAgent 内重复设计高代码服务启停模型。
 - `smc_service` 为从 Nacos 获取的通用服务表，`smc_instance` 为对应实例表，二者不只服务于高代码场景。
-- SophicAgent 通过 `sophic_agent_high_code_service` 对 `smc_service` 中的服务进行筛选、登记和新增，只将被纳入管理范围的服务视为高代码服务。
-- 已存在于 `smc_service` 的服务，可通过筛选后纳入 `sophic_agent_high_code_service` 管理，纳管后保持 `sophic_agent_high_code_service.service_id = smc_service.id`。
-- 新增高代码服务时，先在 `sophic_agent_high_code_service` 中登记，再同步写入或发布到 `smc_service`，并保持两侧 `service_id` 一致。
-- `sophic_agent_high_code_service` / `sophic_agent_high_code_service_version` 用于高代码服务注册和版本管理。
-- `sophic_agent_high_code_deploy_record` 用于记录版本部署、回滚和部署结果，满足“部署记录”查询需求。
-- `sophic_agent_high_code_operation_log` 用于记录启动、停止、重启等运行控制动作，满足“操作流水”审计需求。
+- SophicAgent 通过 `sa_high_code_service` 对 `smc_service` 中的服务进行筛选、登记和新增，只将被纳入管理范围的服务视为高代码服务。
+- 已存在于 `smc_service` 的服务，可通过筛选后纳入 `sa_high_code_service` 管理，纳管后保持 `sa_high_code_service.service_id = smc_service.id`。
+- 新增高代码服务时，先在 `sa_high_code_service` 中登记，再同步写入或发布到 `smc_service`，并保持两侧 `service_id` 一致。
+- `sa_high_code_service` / `sa_high_code_service_version` 用于高代码服务注册和版本管理。
+- `sa_high_code_deploy_record` 用于记录版本部署、回滚和部署结果，满足“部署记录”查询需求。
+- `sa_high_code_operation_log` 用于记录启动、停止、重启等运行控制动作，满足“操作流水”审计需求。
 - `smc_service` / `smc_instance` 用于通用服务运行控制、实例发现和启停管理，`smc_application` 用于运行平台中的应用归属管理。
-- V1 任务执行状态统一由 `sophic_agent_task` 承载，不单独设计任务调度队列表。
+- V1 任务执行状态统一由 `sa_task` 承载，不单独设计任务调度队列表。
 - 如后续确实存在独立调度中心、多节点抢占、延迟任务、重试编排等需求，再补充独立队列表或调度事件表。
 
 ### 3.4 能力资产域
 
 #### 3.4.1 知识资产
 
-- `sophic_agent_knowledge_base`
+- `sa_knowledge_base`
   - 知识库主表，参考 admin 的 `knowledge_base` 表。
   - 关键字段：`kb_id`、`type`、`status`、`name`、`description`、`process_config`、`index_config`、`search_config`、`total_docs`、`creator`、`modifier`
-- `sophic_agent_knowledge_document`
+- `sa_knowledge_document`
   - 知识文档表，参考 admin 的 `document` 表。
   - 关键字段：`kb_id`、`doc_id`、`type`、`status`、`enabled`、`name`、`format`、`size`、`metadata`、`index_status`、`path`、`parsed_path`、`process_config`、`source`、`error`、`creator`、`modifier`
-- `sophic_agent_knowledge_chunk`
+- `sa_knowledge_chunk`
   - 知识分片表。
   - 关键字段：`kb_id`、`doc_id`、`chunk_id`、`content`、`metadata`、`vector_id`、`status`
 
 #### 3.4.2 工具与 MCP 资产
 
-- `sophic_agent_tool`
+- `sa_tool`
   - 工具主表。
   - 关键字段：`tool_id`、`tool_code`、`name`、`description`、`tool_type`、`source`、`source_asset_type`、`source_asset_id`、`source_asset_version`、`publish_id`、`api_schema`、`config`、`test_status`、`enabled`、`latest_version`、`status`、`creator`、`modifier`
-- `sophic_agent_tool_version`
+- `sa_tool_version`
   - 工具版本表。
   - 关键字段：`tool_id`、`version`、`version_desc`、`schema_snapshot`、`config_snapshot`、`status`
-- `sophic_agent_tool_debug_record`
+- `sa_tool_debug_record`
   - 工具调试记录。
   - 关键字段：`tool_id`、`request_payload`、`response_payload`、`success`、`error_message`、`cost_ms`
-- `sophic_agent_mcp_server`
+- `sa_mcp_server`
   - MCP 服务主表，参考 admin 的 `mcp_server` 表。
   - 关键字段：`server_code`、`name`、`description`、`source`、`deploy_env`、`type`、`deploy_config`、`user_id`、`status`、`biz_type`、`detail_config`、`host`、`install_type`、`creator`、`modifier`
-- `sophic_agent_mcp_server_instance`
+- `sa_mcp_server_instance`
   - MCP 服务实例表，支撑服务实例列表、健康状态、运行控制。
   - 关键字段：`instance_id`、`server_code`、`instance_name`、`endpoint`、`health_status`、`runtime_status`、`gmt_last_heartbeat`、`metadata`
 
 #### 3.4.3 记忆资产
 
-- `sophic_agent_memory_short_term`
+- `sa_memory_short_term`
   - 短期记忆表。
   - 关键字段：`session_id`、`seq_no`、`role`、`content`、`metadata`、`expired_at`
-- `sophic_agent_memory_library`
+- `sa_memory_library`
   - 记忆库主表。
   - 关键字段：`memory_library_id`、`library_code`、`name`、`description`、`owner_user_id`、`permission_scope`、`status`
-- `sophic_agent_memory_rule`
+- `sa_memory_rule`
   - 记忆规则表，一个记忆库可配置多条规则。
   - 关键字段：`rule_id`、`memory_library_id`、`rule_name`、`extract_mode`、`expire_days`、`rule_content`、`enabled`、`status`
-- `sophic_agent_memory_long_term`
+- `sa_memory_long_term`
   - 长期记忆明细表。
   - 关键字段：`memory_library_id`、`agent_id`、`user_id`、`memory_id`、`entity_id`、`session_id`、`content`、`summary_content`、`memory_type`、`rule_snapshot`、`metadata`、`embedding_ref`、`score`、`expired_at`、`hit_count`、`last_hit_time`、`status`
-- `sophic_agent_memory_hit_record`
+- `sa_memory_hit_record`
   - 记忆命中记录表。
   - 关键字段：`hit_id`、`memory_library_id`、`memory_id`、`task_id`、`query_text`、`similarity_score`、`status`
-- `sophic_agent_memory_entity`
+- `sa_memory_entity`
   - 应用记忆归档表，用于记录某个应用（智能体或工作流）所属的记忆归档对象。
   - 关键字段：`entity_id`、`memory_library_id`、`agent_id`、`entity_type`、`entity_name`、`entity_summary`、`metadata`、`status`
-- `sophic_agent_memory_recall_test`
+- `sa_memory_recall_test`
   - 记忆召回测试表。
   - 关键字段：`test_id`、`memory_library_id`、`query_text`、`expected_memory_id`、`actual_result`、`score_detail`、`status`
 
 说明：
 
-- `sophic_agent_memory_long_term`、`sophic_agent_memory_entity`、`sophic_agent_memory_hit_record` 构成记忆主链路。
-- `sophic_agent_memory_recall_test` 用于记忆检索测试和命中率验证，保留为测试支撑表。
-- 记忆抽取过程不再单独设计 `sophic_agent_memory_extract_log`，如需排查抽取过程，优先复用运行日志、任务步骤日志或通用调试日志。
+- `sa_memory_long_term`、`sa_memory_entity`、`sa_memory_hit_record` 构成记忆主链路。
+- `sa_memory_recall_test` 用于记忆检索测试和命中率验证，保留为测试支撑表。
+- 记忆抽取过程不再单独设计 `sa_memory_extract_log`，如需排查抽取过程，优先复用运行日志、任务步骤日志或通用调试日志。
 
 #### 3.4.4 数据源与语义资产
 
-- `sophic_agent_datasource`
+- `sa_datasource`
   - 数据源主表。
   - 关键字段：`datasource_id`、`datasource_code`、`datasource_name`、`schema_type`、`datasource_type`、`host`、`port`、`database_name`、`username`、`password_cipher`、`connection_url`、`connect_config`、`gmt_last_sync`、`status`
-- `sophic_agent_datasource_table`
+- `sa_datasource_table`
   - 数据源表元数据。
   - 关键字段：`datasource_id`、`table_id`、`schema_name`、`table_name`、`table_comment`、`refresh_version`、`is_deleted`、`status`
-- `sophic_agent_datasource_field`
+- `sa_datasource_field`
   - 数据源字段元数据。
   - 关键字段：`datasource_id`、`table_id`、`field_id`、`column_name`、`column_comment`、`data_type`、`is_primary`、`is_foreign`、`is_not_null`、`field_status`、`refresh_version`、`is_deleted`、`status`
-- `sophic_agent_datasource_relation`
+- `sa_datasource_relation`
   - 数据源逻辑关系表。
   - 关键字段：`relation_id`、`datasource_id`、`source_table_id`、`target_table_id`、`source_field_name`、`target_field_name`、`relation_type`、`description`、`status`
-- `sophic_agent_datasource_semantic_model`
+- `sa_datasource_semantic_model`
   - 数据源语义配置表。
   - 关键字段：`semantic_id`、`datasource_id`、`table_id`、`field_id`、`semantic_level`、`model_name`、`field_name`、`business_name`、`synonyms`、`business_description`、`metadata`、`status`
 
 ### 3.5 治理观测与运营域
 
-- `sophic_agent_model_provider`
+- `sa_model_provider`
   - 模型供应商表，参考 admin 项目的 `provider` 表设计。
   - 关键字段：`provider_code`、`provider_key`、`name`、`icon`、`description`、`protocol`、`credential`、`supported_model_types`、`source`、`enabled`、`status`
-- `sophic_agent_model`
+- `sa_model`
   - 模型定义表，参考 admin 项目的 `model` 表设计。
   - 关键字段：`model_id`、`provider_code`、`model_code`、`name`、`icon`、`model_type`、`mode`、`source`、`enabled`、`status`
-- `sophic_agent_model_config`
+- `sa_model_config`
   - 模型接入配置表，参考 admin 项目的 `model_config` 表设计，用于承载模型服务地址、API Key 和默认参数配置。
   - 关键字段：`config_id`、`config_name`、`provider_code`、`model_id`、`base_url`、`api_key_cipher`、`default_parameters`、`supported_parameters`、`enabled`、`status`
-- `sophic_agent_invoke_log`
+- `sa_invoke_log`
   - 调用日志。
   - 关键字段：`trace_id`、`request_id`、`task_id`、`agent_id`、`invoke_type`、`target_code`、`input_digest`、`output_digest`、`error_code`、`error_message`、`cost_ms`、`status`
-- `sophic_agent_runtime_metric`
+- `sa_runtime_metric`
   - 运行指标。
   - 关键字段：`metric_scope`、`target_type`、`target_id`、`target_version`、`metric_name`、`metric_value`、`metric_unit`、`stat_granularity`、`stat_window`、`metric_tags`、`collect_time`
-- `sophic_agent_agent_feedback`
+- `sa_agent_feedback`
   - 反馈表。
 - 关键字段：`agent_id`、`task_id`、`session_id`、`user_id`、`rating`、`feedback_type`、`content`、`status`
-- `sophic_agent_tag`
+- `sa_tag`
   - 标签主表，用于统一管理智能体、工作流、工具、MCP、数据源、知识库、记忆库、模板、评测样本等对象标签。
   - 关键字段：`tag_id`、`tag_code`、`tag_name`、`tag_category`、`color`、`scope_type`、`owner_user_id`、`status`
-- `sophic_agent_tag_binding`
+- `sa_tag_binding`
   - 标签绑定关系表，用于维护标签与资源的多对多关系。
   - 关键字段：`tag_id`、`target_type`、`target_id`、`target_version`、`status`
-- `sophic_agent_publish_record`
+- `sa_publish_record`
   - 发布记录表。
   - 关键字段：`publish_id`、`asset_type`、`asset_id`、`asset_version`、`publish_type`、`target_resource_id`、`input_schema`、`output_schema`、`config_snapshot`、`change_log`、`operator_id`、`status`、`gmt_create`、`gmt_modified`
-- `sophic_agent_eval_dataset`
+- `sa_eval_dataset`
   - 评测集主表。
 - 关键字段：`dataset_id`、`dataset_name`、`dataset_type`、`description`、`owner_user_id`、`status`
-- `sophic_agent_eval_dataset_item`
+- `sa_eval_dataset_item`
   - 评测集样本表。
   - 关键字段：`dataset_id`、`item_id`、`question`、`reference_answer`、`conversation_context`
-- `sophic_agent_eval_task`
+- `sa_eval_task`
   - 评测任务表。
   - 关键字段：`eval_task_id`、`task_name`、`eval_type`、`target_type`、`target_id`、`target_version`、`dataset_id`、`eval_config`、`operator_id`、`gmt_start`、`gmt_end`、`status`
-- `sophic_agent_eval_result`
+- `sa_eval_result`
   - 评测结果表。
   - 关键字段：`result_id`、`eval_task_id`、`dataset_item_id`、`session_no`、`question`、`reference_answer`、`generated_answer`、`auto_score`、`manual_score`、`score_detail`、`status`
-- `sophic_agent_perf_test_task`
+- `sa_perf_test_task`
   - 压测任务表。
   - 关键字段：`perf_task_id`、`task_name`、`target_type`、`target_id`、`target_version`、`concurrency_level`、`request_count`、`perf_config`、`result_summary`、`operator_id`、`gmt_start`、`gmt_end`、`status`
 
 #### 模型管理流程
 
 - 模型管理采用三层结构：
-  - `sophic_agent_model_provider`
-  - `sophic_agent_model`
-  - `sophic_agent_model_config`
+  - `sa_model_provider`
+  - `sa_model`
+  - `sa_model_config`
 
 #### 供应商管理
 
-- `sophic_agent_model_provider`
+- `sa_model_provider`
   - 用于维护模型供应商主数据。
   - 对齐 admin 的 `provider` 设计，承载供应商标识、协议、凭证和支持的模型类型。
 - 典型场景
@@ -572,7 +572,7 @@
 
 #### 模型资产管理
 
-- `sophic_agent_model`
+- `sa_model`
   - 用于维护供应商下的模型资产清单。
   - 对齐 admin 的 `model` 设计，以 `model_id` 作为业务主键，`provider_code` 用于标识模型归属供应商，`model_code` 用于展示、检索或兼容历史编码。
 - 典型场景
@@ -582,7 +582,7 @@
 
 #### 模型接入配置管理
 
-- `sophic_agent_model_config`
+- `sa_model_config`
   - 用于维护具体可执行的模型接入配置。
   - 对齐 admin 的 `model_config` 设计，承载 `base_url`、`api_key_cipher`、默认参数和可支持参数。
 - 一个模型可对应多套配置，例如：
@@ -593,7 +593,7 @@
 
 #### 标签管理
 
-- 标签能力统一由 `sophic_agent_tag` 和 `sophic_agent_tag_binding` 承载。
+- 标签能力统一由 `sa_tag` 和 `sa_tag_binding` 承载。
 - 支持的 `target_type` 建议包括：
   - `AGENT_TEMPLATE`
   - `AGENT`
@@ -605,36 +605,36 @@
   - `MEMORY_LIBRARY`
   - `MODEL`
   - `EVAL_DATASET_ITEM`
-- 智能体、工作流、工具、MCP、数据源、知识库、记忆库、模板、评测样本、模型的标签均只通过 `sophic_agent_tag_binding` 维护。
+- 智能体、工作流、工具、MCP、数据源、知识库、记忆库、模板、评测样本、模型的标签均只通过 `sa_tag_binding` 维护。
 
 #### 启停与可见性约定
 
 - 供应商停用
-  - `sophic_agent_model_provider.enabled=0`
+  - `sa_model_provider.enabled=0`
   - 其下模型和模型配置默认不再对新建应用开放选择
 - 模型停用
-  - `sophic_agent_model.enabled=0`
+  - `sa_model.enabled=0`
   - 该模型不再在设计器候选列表中展示
 - 模型配置停用
-  - `sophic_agent_model_config.enabled=0`
+  - `sa_model_config.enabled=0`
   - 不再允许新任务绑定该配置
   - 已发布应用如仍引用该配置，应在发布校验或运行前给出告警
 
 #### 设计器消费链路
 
-1. 设计器先查询可用的 `sophic_agent_model_provider`
-2. 再按供应商查询可用的 `sophic_agent_model`
-3. 最后根据模型选择可用的 `sophic_agent_model_config`
-4. 选中的配置标识写入 `sophic_agent_application_version.config_snapshot`
+1. 设计器先查询可用的 `sa_model_provider`
+2. 再按供应商查询可用的 `sa_model`
+3. 最后根据模型选择可用的 `sa_model_config`
+4. 选中的配置标识写入 `sa_application_version.config_snapshot`
 5. 运行时根据版本快照中的模型配置标识解析到实际 `base_url`、鉴权信息和默认参数
 
 #### 运行时使用约定
 
 - 运行时不直接依赖前端传入的供应商或模型名称。
 - 运行时应根据应用版本快照中记录的 `model_config_id/config_id` 回查：
-  - `sophic_agent_model_config`
-  - `sophic_agent_model`
-  - `sophic_agent_model_provider`
+  - `sa_model_config`
+  - `sa_model`
+  - `sa_model_provider`
 - 解析出最终调用参数：
   - 协议类型
   - 模型标识
@@ -651,20 +651,20 @@
 
 #### 配置变更规则
 
-- 修改 `sophic_agent_model_provider`
+- 修改 `sa_model_provider`
   - 影响供应商级展示信息、协议声明和默认凭证。
   - 不应直接改写已发布应用版本中的模型快照。
-- 修改 `sophic_agent_model`
+- 修改 `sa_model`
   - 影响设计器候选模型列表和后续新版本的模型选择。
   - 不应直接改写已发布应用版本中的模型快照。
-- 修改 `sophic_agent_model_config`
+- 修改 `sa_model_config`
   - 影响运行时实际调用地址、鉴权信息和默认参数。
   - 属于高风险变更，应记录修改人和修改时间。
 
 #### 对已发布应用的影响
 
 - 已发布应用应固化引用 `model_config_id/config_id`。
-- 已发布应用重新运行时，默认按当前有效的 `sophic_agent_model_config` 解析真实调用参数。
+- 已发布应用重新运行时，默认按当前有效的 `sa_model_config` 解析真实调用参数。
 - 如果配置内容发生变更：
   - 不需要强制重新发布应用版本
   - 但应视为“底层模型接入配置变更”
@@ -677,7 +677,7 @@
 
 - 已启动任务在执行过程中，建议固定使用任务启动时解析出的模型参数。
 - 不建议任务执行到一半因为后台修改了 `model_config` 而切换调用地址或 API Key。
-- 建议在 `sophic_agent_task` 或 `sophic_agent_invoke_log` 中保留当次实际使用的模型配置摘要，例如：
+- 建议在 `sa_task` 或 `sa_invoke_log` 中保留当次实际使用的模型配置摘要，例如：
   - `provider_code`
   - `model_id`
   - `base_url`
@@ -701,9 +701,9 @@
 #### 发布校验建议
 
 - 应用发布前，建议校验：
-  - 关联的 `sophic_agent_model_provider` 是否可用
-  - 关联的 `sophic_agent_model` 是否可用
-  - 关联的 `sophic_agent_model_config` 是否可用
+  - 关联的 `sa_model_provider` 是否可用
+  - 关联的 `sa_model` 是否可用
+  - 关联的 `sa_model_config` 是否可用
   - `base_url`、`api_key_cipher`、默认参数是否完整
 - 校验失败时：
   - 不允许发布为应用
@@ -714,102 +714,101 @@
 
 ### 4.1 应用与设计器主链路
 
-- `sophic_agent_agent_template` 1-N `sophic_agent_application`
-- `sophic_agent_application` 1-N `sophic_agent_application_version`
-- `sophic_agent_application_version` 1-0/1 `sophic_agent_agent_schema`
-- `sophic_agent_application_version` 1-N `sophic_agent_application_binding`
-- `sophic_agent_application_binding` 1-N `sophic_agent_application_binding_item`
-- `sophic_agent_application` 1-N `sophic_agent_guardrail_rule`
-- `sophic_agent_guardrail_rule` 1-N `sophic_agent_guardrail_fixed_reply`
-- `sophic_agent_high_code_service` 1-N `sophic_agent_high_code_service_version`
-- `sophic_agent_model_provider` 1-N `sophic_agent_model`
-- `sophic_agent_model` 1-N `sophic_agent_model_config`
+- `sa_agent_template` 1-N `sa_application`
+- `sa_application` 1-N `sa_application_version`
+- `sa_application_version` 1-N `sa_application_binding`
+- `sa_application_binding` 1-N `sa_application_binding_item`
+- `sa_application` 1-N `sa_guardrail_rule`
+- `sa_guardrail_rule` 1-N `sa_guardrail_fixed_reply`
+- `sa_high_code_service` 1-N `sa_high_code_service_version`
+- `sa_model_provider` 1-N `sa_model`
+- `sa_model` 1-N `sa_model_config`
 
 ### 4.2 运行时与会话链路
 
-- `sophic_agent_session` 1-N `sophic_agent_session_message`
-- `sophic_agent_session` 1-N `sophic_agent_task`
-- `sophic_agent_session_message` 1-1/N `sophic_agent_task`（用户消息触发执行）
-- `sophic_agent_task` N-1 `sophic_agent_session_message`（`response_message_id` 指向最终回复消息）
-- `sophic_agent_task` N-1 `sophic_agent_application_version`
-- `sophic_agent_high_code_service` 1-N `sophic_agent_high_code_deploy_record`
-- `sophic_agent_high_code_service` 1-N `sophic_agent_high_code_operation_log`
-- `smc_instance` 1-N `sophic_agent_high_code_operation_log`
-- `sophic_agent_task` 1-N `sophic_agent_execution_step`
+- `sa_session` 1-N `sa_session_message`
+- `sa_session` 1-N `sa_task`
+- `sa_session_message` 1-1/N `sa_task`（用户消息触发执行）
+- `sa_task` N-1 `sa_session_message`（`response_message_id` 指向最终回复消息）
+- `sa_task` N-1 `sa_application_version`
+- `sa_high_code_service` 1-N `sa_high_code_deploy_record`
+- `sa_high_code_service` 1-N `sa_high_code_operation_log`
+- `smc_instance` 1-N `sa_high_code_operation_log`
+- `sa_task` 1-N `sa_execution_step`
 - `smc_application` 1-N `smc_service`
 - `smc_service` 1-N `smc_instance`
-- `sophic_agent_invoke_log` N-1 `sophic_agent_task`
-- `sophic_agent_agent_feedback` N-1 `sophic_agent_task`
-- `sophic_agent_agent_feedback` N-1 `sophic_agent_session`
-- `sophic_agent_memory_short_term` N-1 `sophic_agent_session`
+- `sa_invoke_log` N-1 `sa_task`
+- `sa_agent_feedback` N-1 `sa_task`
+- `sa_agent_feedback` N-1 `sa_session`
+- `sa_memory_short_term` N-1 `sa_session`
 
 ### 4.3 知识、工具、MCP、数据源链路
 
-- `sophic_agent_knowledge_base` 1-N `sophic_agent_knowledge_document`
-- `sophic_agent_knowledge_document` 1-N `sophic_agent_knowledge_chunk`
-- `sophic_agent_tool` 1-N `sophic_agent_tool_version`
-- `sophic_agent_tool` 1-N `sophic_agent_tool_debug_record`
-- `sophic_agent_mcp_server` 1-N `sophic_agent_mcp_server_instance`
-- `sophic_agent_datasource` 1-N `sophic_agent_datasource_table`
-- `sophic_agent_datasource_table` 1-N `sophic_agent_datasource_field`
-- `sophic_agent_datasource` 1-N `sophic_agent_datasource_relation`
-- `sophic_agent_datasource` 1-N `sophic_agent_datasource_semantic_model`
+- `sa_knowledge_base` 1-N `sa_knowledge_document`
+- `sa_knowledge_document` 1-N `sa_knowledge_chunk`
+- `sa_tool` 1-N `sa_tool_version`
+- `sa_tool` 1-N `sa_tool_debug_record`
+- `sa_mcp_server` 1-N `sa_mcp_server_instance`
+- `sa_datasource` 1-N `sa_datasource_table`
+- `sa_datasource_table` 1-N `sa_datasource_field`
+- `sa_datasource` 1-N `sa_datasource_relation`
+- `sa_datasource` 1-N `sa_datasource_semantic_model`
 
 ### 4.4 记忆链路
 
-- `sophic_agent_memory_library` 1-N `sophic_agent_memory_rule`
-- `sophic_agent_memory_library` 1-N `sophic_agent_memory_long_term`
-- `sophic_agent_memory_library` 1-N `sophic_agent_memory_entity`
-- `sophic_agent_memory_library` 1-N `sophic_agent_memory_recall_test`
-- `sophic_agent_memory_entity` 1-N `sophic_agent_memory_long_term`
-- `sophic_agent_memory_long_term` 1-N `sophic_agent_memory_hit_record`
+- `sa_memory_library` 1-N `sa_memory_rule`
+- `sa_memory_library` 1-N `sa_memory_long_term`
+- `sa_memory_library` 1-N `sa_memory_entity`
+- `sa_memory_library` 1-N `sa_memory_recall_test`
+- `sa_memory_entity` 1-N `sa_memory_long_term`
+- `sa_memory_long_term` 1-N `sa_memory_hit_record`
 
 ### 4.5 发布、评测、压测链路
 
-- `sophic_agent_publish_record` N-1 `sophic_agent_application_version`
-- `sophic_agent_publish_record` N-1 `sophic_agent_tool_version`
-- `sophic_agent_publish_record` N-1 `sophic_agent_high_code_service_version`
-- `sophic_agent_eval_dataset` 1-N `sophic_agent_eval_dataset_item`
-- `sophic_agent_eval_task` 1-N `sophic_agent_eval_result`
-- `sophic_agent_eval_task` N-1 `sophic_agent_eval_dataset`
-- `sophic_agent_eval_task` N-1 `sophic_agent_application_version`
-- `sophic_agent_perf_test_task` N-1 `sophic_agent_application_version`
-- `sophic_agent_perf_test_task` N-1 `sophic_agent_tool_version`
-- `sophic_agent_perf_test_task` N-1 `sophic_agent_high_code_service_version`
+- `sa_publish_record` N-1 `sa_application_version`
+- `sa_publish_record` N-1 `sa_tool_version`
+- `sa_publish_record` N-1 `sa_high_code_service_version`
+- `sa_eval_dataset` 1-N `sa_eval_dataset_item`
+- `sa_eval_task` 1-N `sa_eval_result`
+- `sa_eval_task` N-1 `sa_eval_dataset`
+- `sa_eval_task` N-1 `sa_application_version`
+- `sa_perf_test_task` N-1 `sa_application_version`
+- `sa_perf_test_task` N-1 `sa_tool_version`
+- `sa_perf_test_task` N-1 `sa_high_code_service_version`
 
 ### 4.6 标签链路
 
-- `sophic_agent_tag` 1-N `sophic_agent_tag_binding`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_agent_template`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_application`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_model`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_tool`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_mcp_server`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_datasource`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_knowledge_base`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_memory_library`
-- `sophic_agent_tag_binding` N-1 `sophic_agent_eval_dataset_item`
+- `sa_tag` 1-N `sa_tag_binding`
+- `sa_tag_binding` N-1 `sa_agent_template`
+- `sa_tag_binding` N-1 `sa_application`
+- `sa_tag_binding` N-1 `sa_model`
+- `sa_tag_binding` N-1 `sa_tool`
+- `sa_tag_binding` N-1 `sa_mcp_server`
+- `sa_tag_binding` N-1 `sa_datasource`
+- `sa_tag_binding` N-1 `sa_knowledge_base`
+- `sa_tag_binding` N-1 `sa_memory_library`
+- `sa_tag_binding` N-1 `sa_eval_dataset_item`
 
 ### 4.7 权限资源链路
 
-- `sophic_agent_resource` 1-N `sophic_agent_resource_acl`
-- `sophic_agent_resource` 1-1 `sophic_agent_application`
-- `sophic_agent_resource` 1-1 `sophic_agent_high_code_service`
-- `sophic_agent_resource` 1-1 `sophic_agent_tool`
-- `sophic_agent_resource` 1-1 `sophic_agent_mcp_server`
-- `sophic_agent_resource` 1-1 `sophic_agent_knowledge_base`
-- `sophic_agent_resource` 1-1 `sophic_agent_datasource`
-- `sophic_agent_resource` 1-1 `sophic_agent_memory_library`
+- `sa_resource` 1-N `sa_resource_acl`
+- `sa_resource` 1-1 `sa_application`
+- `sa_resource` 1-1 `sa_high_code_service`
+- `sa_resource` 1-1 `sa_tool`
+- `sa_resource` 1-1 `sa_mcp_server`
+- `sa_resource` 1-1 `sa_knowledge_base`
+- `sa_resource` 1-1 `sa_datasource`
+- `sa_resource` 1-1 `sa_memory_library`
 
 说明：
 
-- `sophic_agent_resource` 是统一资源锚点，业务上与各资源主表按 `resource_type + resource_id` 建立一对一映射。
-- 你方已确认 `resource_id` 全局唯一，因此 `sophic_agent_resource_acl` 继续按 `(resource_id, subject_type, subject_id, permission_type)` 做唯一约束即可。
+- `sa_resource` 是统一资源锚点，业务上与各资源主表按 `resource_type + resource_id` 建立一对一映射。
+- 你方已确认 `resource_id` 全局唯一，因此 `sa_resource_acl` 继续按 `(resource_id, subject_type, subject_id, permission_type)` 做唯一约束即可。
 - `subject_type` 建议支持：`USER`、`GROUP`、`INSTITUTE`。
 - `permission_type` 建议支持：`READ`、`WRITE`。
 - `grant_type` 建议支持：`DIRECT`、`INHERITED`。
-- `sophic_agent_task` 与 `sophic_agent_application_version` 的关联建议通过 `(agent_id, agent_version)` 建立。
-- `sophic_agent_publish_record`、`sophic_agent_eval_task`、`sophic_agent_perf_test_task` 均建议按 `(asset_id/target_id, asset_version/target_version)` 关联到具体应用版本或高代码版本。
+- `sa_task` 与 `sa_application_version` 的关联建议通过 `(agent_id, agent_version)` 建立。
+- `sa_publish_record`、`sa_eval_task`、`sa_perf_test_task` 均建议按 `(asset_id/target_id, asset_version/target_version)` 关联到具体应用版本或高代码版本。
 
 ## 5. 状态机建议
 
@@ -822,133 +821,132 @@
 
 ## 6. 核心索引建议
 
-- `sophic_agent_agent_template(template_type, scene_type, status)`
-- `sophic_agent_application(type, status)`
-- `sophic_agent_application_version(agent_id, version)`
-- `sophic_agent_application_binding(agent_id, agent_version)`
-- `sophic_agent_application_binding(resource_type, resource_id, status)`
-- `sophic_agent_application_binding_item(binding_id, status, sort_no)`
-- `sophic_agent_task(session_id, trigger_message_id, status, gmt_start)`
-- `sophic_agent_task(agent_id, agent_version, status, gmt_start)`
-- `sophic_agent_high_code_deploy_record(service_id, service_version, deploy_env, gmt_start)`
-- `sophic_agent_high_code_operation_log(service_id, operation_type, gmt_create)`
-- `sophic_agent_model(provider_code, model_type, enabled, status)`
-- `sophic_agent_model_config(model_id, enabled, status)`
-- `sophic_agent_model_config(provider_code, model_id, enabled, status)`
-- `sophic_agent_execution_step(task_id, step_no)`
+- `sa_agent_template(template_type, scene_type, status)`
+- `sa_application(type, status)`
+- `sa_application_version(agent_id, version)`
+- `sa_application_binding(agent_id, agent_version)`
+- `sa_application_binding(resource_type, resource_id, status)`
+- `sa_application_binding_item(binding_id, status, sort_no)`
+- `sa_task(session_id, trigger_message_id, status, gmt_start)`
+- `sa_task(agent_id, agent_version, status, gmt_start)`
+- `sa_high_code_deploy_record(service_id, service_version, deploy_env, gmt_start)`
+- `sa_high_code_operation_log(service_id, operation_type, gmt_create)`
+- `sa_model(provider_code, model_type, enabled, status)`
+- `sa_model_config(model_id, enabled, status)`
+- `sa_model_config(provider_code, model_id, enabled, status)`
+- `sa_execution_step(task_id, step_no)`
 - `smc_service(ref_application, type, update_time)`
 - `smc_instance(service_id, enabled, update_time)`
-- `sophic_agent_session(agent_id, user_id, gmt_last_active)`
-- `sophic_agent_session(user_id, status, gmt_last_active)`
-- `sophic_agent_session_message(session_id, gmt_create)`
-- `sophic_agent_invoke_log(task_id, gmt_create)`
-- `sophic_agent_invoke_log(agent_id, invoke_type, status, gmt_create)`
-- `sophic_agent_runtime_metric(target_type, target_id, metric_name, collect_time)`
-- `sophic_agent_runtime_metric(target_type, target_id, target_version, stat_granularity, collect_time)`
-- `sophic_agent_knowledge_document(kb_id, index_status, status)`
-- `sophic_agent_mcp_server(status, name)`
-- `sophic_agent_mcp_server(user_id, status, gmt_modified)`
-- `sophic_agent_mcp_server_instance(server_code, runtime_status, health_status)`
-- `sophic_agent_tool(source_asset_type, source_asset_id, enabled, status)`
-- `sophic_agent_tool(publish_id)`
-- `sophic_agent_tool_debug_record(tool_id, gmt_create)`
-- `sophic_agent_datasource_field(datasource_id, table_id)`
-- `sophic_agent_datasource(datasource_type, schema_type, status)`
-- `sophic_agent_datasource(status, gmt_last_sync)`
-- `sophic_agent_datasource(datasource_name, status)`
-- `sophic_agent_datasource_table(datasource_id, schema_name, table_name, status)`
-- `sophic_agent_datasource_relation(datasource_id, source_table_id, target_table_id, status)`
-- `sophic_agent_datasource_semantic_model(datasource_id, status, semantic_level)`
-- `sophic_agent_datasource_semantic_model(datasource_id, table_id, field_id, semantic_level, status)`
-- `sophic_agent_memory_rule(memory_library_id, enabled, status)`
-- `sophic_agent_memory_long_term(memory_library_id, user_id, status, gmt_create)`
-- `sophic_agent_memory_long_term(entity_id, status, last_hit_time)`
-- `sophic_agent_memory_hit_record(memory_library_id, memory_id, status)`
-- `sophic_agent_publish_record(asset_type, asset_id, status)`
-- `sophic_agent_publish_record(asset_type, asset_id, asset_version, publish_type, gmt_create)`
-- `sophic_agent_publish_record(target_resource_id, publish_type, status, gmt_create)`
-- `sophic_agent_eval_dataset_item(dataset_id)`
-- `sophic_agent_eval_dataset(owner_user_id, status)`
-- `sophic_agent_eval_task(target_type, target_id, status)`
-- `sophic_agent_eval_task(dataset_id, status, gmt_start)`
-- `sophic_agent_eval_result(eval_task_id, dataset_item_id, status)`
-- `sophic_agent_perf_test_task(target_type, target_id, target_version, status, gmt_start)`
-- `sophic_agent_perf_test_task(operator_id, status, gmt_start)`
-- `sophic_agent_guardrail_rule(agent_id, enabled, status, priority)`
-- `sophic_agent_guardrail_fixed_reply(agent_id, rule_id, status, priority)`
-- `sophic_agent_agent_feedback(agent_id, gmt_create)`
-- `sophic_agent_agent_feedback(task_id)`
-- `sophic_agent_agent_feedback(session_id, gmt_create)`
-- `sophic_agent_tag_binding(target_type, target_id, status)`
-- `sophic_agent_tag_binding(tag_id, status, gmt_create)`
-- `sophic_agent_resource_acl(subject_type, subject_id, permission_type, status, resource_id)`
+- `sa_session(agent_id, user_id, gmt_last_active)`
+- `sa_session(user_id, status, gmt_last_active)`
+- `sa_session_message(session_id, gmt_create)`
+- `sa_invoke_log(task_id, gmt_create)`
+- `sa_invoke_log(agent_id, invoke_type, status, gmt_create)`
+- `sa_runtime_metric(target_type, target_id, metric_name, collect_time)`
+- `sa_runtime_metric(target_type, target_id, target_version, stat_granularity, collect_time)`
+- `sa_knowledge_document(kb_id, index_status, status)`
+- `sa_mcp_server(status, name)`
+- `sa_mcp_server(user_id, status, gmt_modified)`
+- `sa_mcp_server_instance(server_code, runtime_status, health_status)`
+- `sa_tool(source_asset_type, source_asset_id, enabled, status)`
+- `sa_tool(publish_id)`
+- `sa_tool_debug_record(tool_id, gmt_create)`
+- `sa_datasource_field(datasource_id, table_id)`
+- `sa_datasource(datasource_type, schema_type, status)`
+- `sa_datasource(status, gmt_last_sync)`
+- `sa_datasource(datasource_name, status)`
+- `sa_datasource_table(datasource_id, schema_name, table_name, status)`
+- `sa_datasource_relation(datasource_id, source_table_id, target_table_id, status)`
+- `sa_datasource_semantic_model(datasource_id, status, semantic_level)`
+- `sa_datasource_semantic_model(datasource_id, table_id, field_id, semantic_level, status)`
+- `sa_memory_rule(memory_library_id, enabled, status)`
+- `sa_memory_long_term(memory_library_id, user_id, status, gmt_create)`
+- `sa_memory_long_term(entity_id, status, last_hit_time)`
+- `sa_memory_hit_record(memory_library_id, memory_id, status)`
+- `sa_publish_record(asset_type, asset_id, status)`
+- `sa_publish_record(asset_type, asset_id, asset_version, publish_type, gmt_create)`
+- `sa_publish_record(target_resource_id, publish_type, status, gmt_create)`
+- `sa_eval_dataset_item(dataset_id)`
+- `sa_eval_dataset(owner_user_id, status)`
+- `sa_eval_task(target_type, target_id, status)`
+- `sa_eval_task(dataset_id, status, gmt_start)`
+- `sa_eval_result(eval_task_id, dataset_item_id, status)`
+- `sa_perf_test_task(target_type, target_id, target_version, status, gmt_start)`
+- `sa_perf_test_task(operator_id, status, gmt_start)`
+- `sa_guardrail_rule(agent_id, enabled, status, priority)`
+- `sa_guardrail_fixed_reply(agent_id, rule_id, status, priority)`
+- `sa_agent_feedback(agent_id, gmt_create)`
+- `sa_agent_feedback(task_id)`
+- `sa_agent_feedback(session_id, gmt_create)`
+- `sa_tag_binding(target_type, target_id, status)`
+- `sa_tag_binding(tag_id, status, gmt_create)`
+- `sa_resource_acl(subject_type, subject_id, permission_type, status, resource_id)`
 
 ### 6.1 唯一约束建议
 
-- `sophic_agent_api_key(api_key)`
-- `sophic_agent_resource(resource_id)`
-- `sophic_agent_resource_acl(resource_id, subject_type, subject_id, permission_type)`
-- `sophic_agent_agent_template(template_id)`
-- `sophic_agent_agent_template(template_code)`
-- `sophic_agent_application(agent_id)`
-- `sophic_agent_application(agent_code)`
-- `sophic_agent_application_version(agent_id, version)`
-- `sophic_agent_agent_schema(agent_id, version)`
-- `sophic_agent_application_binding(binding_id)`
-- `sophic_agent_application_binding(agent_id, agent_version, resource_type, resource_id)`
-- `sophic_agent_application_binding_item(binding_id, item_type, item_id, item_path)`
-- `sophic_agent_high_code_service(service_id)`
-- `sophic_agent_high_code_service(service_code)`
-- `sophic_agent_high_code_service_version(service_id, version)`
-- `sophic_agent_model_provider(provider_code)`
-- `sophic_agent_model(model_id)`
-- `sophic_agent_model_config(config_id)`
-- `sophic_agent_session(session_id)`
-- `sophic_agent_session_message(message_id)`
-- `sophic_agent_session_message(session_id, seq_no)`
-- `sophic_agent_task(task_id)`
-- `sophic_agent_high_code_deploy_record(deploy_id)`
-- `sophic_agent_high_code_operation_log(operation_id)`
-- `sophic_agent_execution_step(step_id)`
-- `sophic_agent_execution_step(task_id, step_no)`
-- `sophic_agent_knowledge_base(kb_id)`
-- `sophic_agent_knowledge_document(doc_id)`
-- `sophic_agent_knowledge_chunk(chunk_id)`
-- `sophic_agent_tool(tool_id)`
-- `sophic_agent_tool(tool_code)`
-- `sophic_agent_tool_version(tool_id, version)`
-- `sophic_agent_mcp_server(server_code)`
-- `sophic_agent_mcp_server_instance(instance_id)`
-- `sophic_agent_memory_library(memory_library_id)`
-- `sophic_agent_memory_library(library_code)`
-- `sophic_agent_memory_rule(rule_id)`
-- `sophic_agent_memory_long_term(memory_id)`
-- `sophic_agent_memory_hit_record(hit_id)`
-- `sophic_agent_memory_entity(entity_id)`
-- `sophic_agent_memory_recall_test(test_id)`
-- `sophic_agent_datasource(datasource_id)`
-- `sophic_agent_datasource(datasource_code)`
-- `sophic_agent_datasource_table(table_id)`
-- `sophic_agent_datasource_field(field_id)`
-- `sophic_agent_datasource_relation(relation_id)`
-- `sophic_agent_datasource_semantic_model(semantic_id)`
-- `sophic_agent_guardrail_rule(rule_id)`
-- `sophic_agent_guardrail_rule(agent_id, rule_code)`
-- `sophic_agent_guardrail_fixed_reply(record_id)`
-- `sophic_agent_publish_record(publish_id)`
-- `sophic_agent_eval_dataset(dataset_id)`
-- `sophic_agent_eval_dataset_item(item_id)`
-- `sophic_agent_eval_task(eval_task_id)`
-- `sophic_agent_eval_result(result_id)`
-- `sophic_agent_perf_test_task(perf_task_id)`
-- `sophic_agent_tag(tag_id)`
-- `sophic_agent_tag(tag_code)`
-- `sophic_agent_tag_binding(tag_id, target_type, target_id, target_version)`
+- `sa_api_key(api_key)`
+- `sa_resource(resource_id)`
+- `sa_resource_acl(resource_id, subject_type, subject_id, permission_type)`
+- `sa_agent_template(template_id)`
+- `sa_agent_template(template_code)`
+- `sa_application(agent_id)`
+- `sa_application(agent_code)`
+- `sa_application_version(agent_id, version)`
+- `sa_application_binding(binding_id)`
+- `sa_application_binding(agent_id, agent_version, resource_type, resource_id)`
+- `sa_application_binding_item(binding_id, item_type, item_id, item_path)`
+- `sa_high_code_service(service_id)`
+- `sa_high_code_service(service_code)`
+- `sa_high_code_service_version(service_id, version)`
+- `sa_model_provider(provider_code)`
+- `sa_model(model_id)`
+- `sa_model_config(config_id)`
+- `sa_session(session_id)`
+- `sa_session_message(message_id)`
+- `sa_session_message(session_id, seq_no)`
+- `sa_task(task_id)`
+- `sa_high_code_deploy_record(deploy_id)`
+- `sa_high_code_operation_log(operation_id)`
+- `sa_execution_step(step_id)`
+- `sa_execution_step(task_id, step_no)`
+- `sa_knowledge_base(kb_id)`
+- `sa_knowledge_document(doc_id)`
+- `sa_knowledge_chunk(chunk_id)`
+- `sa_tool(tool_id)`
+- `sa_tool(tool_code)`
+- `sa_tool_version(tool_id, version)`
+- `sa_mcp_server(server_code)`
+- `sa_mcp_server_instance(instance_id)`
+- `sa_memory_library(memory_library_id)`
+- `sa_memory_library(library_code)`
+- `sa_memory_rule(rule_id)`
+- `sa_memory_long_term(memory_id)`
+- `sa_memory_hit_record(hit_id)`
+- `sa_memory_entity(entity_id)`
+- `sa_memory_recall_test(test_id)`
+- `sa_datasource(datasource_id)`
+- `sa_datasource(datasource_code)`
+- `sa_datasource_table(table_id)`
+- `sa_datasource_field(field_id)`
+- `sa_datasource_relation(relation_id)`
+- `sa_datasource_semantic_model(semantic_id)`
+- `sa_guardrail_rule(rule_id)`
+- `sa_guardrail_rule(agent_id, rule_code)`
+- `sa_guardrail_fixed_reply(record_id)`
+- `sa_publish_record(publish_id)`
+- `sa_eval_dataset(dataset_id)`
+- `sa_eval_dataset_item(item_id)`
+- `sa_eval_task(eval_task_id)`
+- `sa_eval_result(result_id)`
+- `sa_perf_test_task(perf_task_id)`
+- `sa_tag(tag_id)`
+- `sa_tag(tag_code)`
+- `sa_tag_binding(tag_id, target_type, target_id, target_version)`
 
 ## 7. 结论
 
 - 当前版本已经不再区分 V1 / V2，所有确定需要的表均合并为 V1 正式设计。
-- 应用与设计器域以 `application + application_version + agent_schema + application_binding + application_binding_item + guardrail_rule` 为核心。
+- 应用与设计器域以 `application + application_version + application_binding + application_binding_item + guardrail_rule` 为核心。
 - 会话、反馈、护栏规则/固定输出配置、MCP 实例、记忆实体/验证等此前缺失的表已纳入正式设计。
 - MCP、知识库相关表的字段设计已按 admin 项目的现有设计风格收敛。
 - 结合本轮补充，唯一约束、运行时部署记录/操作流水、标签管理和应用级监测维度已经纳入正式设计。
@@ -961,7 +959,7 @@
 - 本节补充 SophicAgent 自建表和账号权限域中直接使用到的菜单表明细。
 - `users`、`user_info`、`user_additional_info`、`user_login`、`user_sign`、`priv_group`、`priv_role`、`priv_permission`、`priv_group_role_relation`、`priv_role_permission_relation`、`priv_user_group_relation` 为现有系统复用表，字段以现网权限中心为准，此处不重复展开完整结构。
 
-### 8.1 `sophic_agent_api_key`
+### 8.1 `sa_api_key`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -998,7 +996,7 @@
 | `menu_id` | `varchar(32)` | 外键，关联 `priv_menu_resource.id` |
 | `ele_id` | `varchar(32)` | 菜单元素 id，可为空，用于按钮/元素级控制 |
 
-### 8.4 `sophic_agent_resource`
+### 8.4 `sa_resource`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1013,12 +1011,12 @@
 | `ext_config` | `json` | 扩展配置 |
 | `status` | `tinyint` | 状态 |
 
-### 8.5 `sophic_agent_resource_acl`
+### 8.5 `sa_resource_acl`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `resource_id` | `varchar(64)` | 外键，关联 `sophic_agent_resource.resource_id` |
+| `resource_id` | `varchar(64)` | 外键，关联 `sa_resource.resource_id` |
 | `subject_type` | `varchar(32)` | 主体类型，`USER/GROUP/INSTITUTE` |
 | `subject_id` | `varchar(64)` | 主体 id，关联用户/组/研究所 |
 | `permission_type` | `varchar(32)` | 权限类型，`READ/WRITE` |
@@ -1029,7 +1027,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.6 `sophic_agent_agent_template`
+### 8.6 `sa_agent_template`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1054,7 +1052,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.7 `sophic_agent_application`
+### 8.7 `sa_application`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1076,18 +1074,24 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.8 `sophic_agent_application_version`
+### 8.8 `sa_application_version`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `agent_id` | `varchar(64)` | 外键，关联 `sophic_agent_application.agent_id` |
+| `agent_id` | `varchar(64)` | 外键，关联 `sa_application.agent_id` |
 | `version` | `varchar(32)` | 版本号 |
 | `version_desc` | `varchar(4096)` | 版本说明 |
 | `config_snapshot` | `json/longtext` | 应用完整配置快照，含 workflow DSL |
 | `runtime_config` | `json` | 运行配置 |
 | `input_schema` | `json` | 入参定义 |
 | `output_schema` | `json` | 出参定义 |
+| `instruction` | `longtext` | Agent 系统提示词/指令，按版本存储 |
+| `input_keys` | `json` | Agent 输入键定义，按版本存储 |
+| `output_key` | `varchar(255)` | Agent 输出键，按版本存储 |
+| `handle_config` | `json` | Agent 处理器配置，按版本存储 |
+| `sub_agents` | `json` | 子 Agent 配置，按版本存储 |
+| `yaml_schema` | `longtext` | Agent YAML 配置快照，按版本存储 |
 | `dsl_schema` | `json` | DSL 导出快照 |
 | `change_log` | `json` | 变更摘要 |
 | `base_version` | `varchar(32)` | 派生来源版本 |
@@ -1097,29 +1101,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.9 `sophic_agent_agent_schema`
-
-| 属性名 | 类型 | 说明 |
-|---|---|---|
-| `id` | `bigint unsigned` | 主键 |
-| `agent_schema_id` | `varchar(64)` | 业务主键，schema id |
-| `agent_id` | `varchar(64)` | 外键，关联 `sophic_agent_application.agent_id` |
-| `version` | `varchar(32)` | 外键的一部分，关联应用版本 |
-| `name` | `varchar(255)` | Agent 名称 |
-| `description` | `varchar(4096)` | Agent 描述 |
-| `agent_type` | `varchar(64)` | Agent 类型 |
-| `instruction` | `longtext` | 系统提示词/指令 |
-| `input_keys` | `json` | 输入键定义 |
-| `output_key` | `varchar(255)` | 输出键 |
-| `handle_config` | `json` | 处理器配置 |
-| `sub_agents` | `json` | 子 Agent 配置 |
-| `yaml_schema` | `longtext` | YAML 配置快照 |
-| `enabled` | `tinyint` | 是否启用 |
-| `status` | `varchar(64)` | 状态 |
-| `gmt_create` | `datetime` | 创建时间 |
-| `gmt_modified` | `datetime` | 修改时间 |
-
-### 8.10 `sophic_agent_application_binding`
+### 8.10 `sa_application_binding`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1128,7 +1110,7 @@
 | `agent_id` | `varchar(64)` | 外键，关联应用 |
 | `agent_version` | `varchar(32)` | 外键的一部分，关联应用版本 |
 | `resource_type` | `varchar(64)` | 资源类型，如知识库、工具、数据源 |
-| `resource_id` | `varchar(64)` | 外键，关联 `sophic_agent_resource.resource_id` 或对应业务资源 |
+| `resource_id` | `varchar(64)` | 外键，关联 `sa_resource.resource_id` 或对应业务资源 |
 | `resource_name` | `varchar(255)` | 资源名称快照 |
 | `binding_source` | `varchar(64)` | 绑定来源 |
 | `sort_no` | `int` | 排序号 |
@@ -1138,12 +1120,12 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.11 `sophic_agent_application_binding_item`
+### 8.11 `sa_application_binding_item`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `binding_id` | `varchar(64)` | 外键，关联 `sophic_agent_application_binding.binding_id` |
+| `binding_id` | `varchar(64)` | 外键，关联 `sa_application_binding.binding_id` |
 | `item_type` | `varchar(64)` | 明细类型，如 `TABLE/FIELD/MCP_TOOL` |
 | `item_id` | `varchar(128)` | 明细项 id |
 | `item_name` | `varchar(255)` | 明细项名称 |
@@ -1154,7 +1136,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.12 `sophic_agent_high_code_service`
+### 8.12 `sa_high_code_service`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1170,12 +1152,12 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.13 `sophic_agent_high_code_service_version`
+### 8.13 `sa_high_code_service_version`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `service_id` | `varchar(64)` | 外键，关联 `sophic_agent_high_code_service.service_id` |
+| `service_id` | `varchar(64)` | 外键，关联 `sa_high_code_service.service_id` |
 | `version` | `varchar(32)` | 版本号 |
 | `package_type` | `varchar(32)` | 制品类型，如 `jar/docker` |
 | `package_uri` | `varchar(512)` | 制品地址 |
@@ -1187,7 +1169,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.14 `sophic_agent_model_provider`
+### 8.14 `sa_model_provider`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1208,13 +1190,13 @@
 | `creator` | `varchar(64)` | 创建人 |
 | `modifier` | `varchar(64)` | 修改人 |
 
-### 8.15 `sophic_agent_model`
+### 8.15 `sa_model`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `model_id` | `varchar(100)` | 业务主键，模型标识，参考 admin `model.model_id` |
-| `provider_code` | `varchar(64)` | 外键，关联 `sophic_agent_model_provider.provider_code` |
+| `provider_code` | `varchar(64)` | 外键，关联 `sa_model_provider.provider_code` |
 | `model_code` | `varchar(64)` | 模型编码，用于展示、检索或兼容历史编码 |
 | `name` | `varchar(255)` | 模型名称 |
 | `icon` | `varchar(255)` | 模型图标 |
@@ -1228,15 +1210,15 @@
 | `creator` | `varchar(64)` | 创建人 |
 | `modifier` | `varchar(64)` | 修改人 |
 
-### 8.15.1 `sophic_agent_model_config`
+### 8.15.1 `sa_model_config`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `config_id` | `varchar(64)` | 业务主键，模型配置 ID |
 | `config_name` | `varchar(100)` | 配置名称，参考 admin `model_config.name` |
-| `provider_code` | `varchar(64)` | 外键，关联 `sophic_agent_model_provider.provider_code` |
-| `model_id` | `varchar(100)` | 外键，关联 `sophic_agent_model.model_id` |
+| `provider_code` | `varchar(64)` | 外键，关联 `sa_model_provider.provider_code` |
+| `model_id` | `varchar(100)` | 外键，关联 `sa_model.model_id` |
 | `base_url` | `varchar(500)` | 模型服务地址，参考 admin `model_config.base_url` |
 | `api_key_cipher` | `varchar(500)` | API Key 密文字段，参考 admin `model_config.api_key` |
 | `default_parameters` | `json` | 默认参数配置，参考 admin `model_config.default_parameters` |
@@ -1248,7 +1230,7 @@
 | `creator` | `varchar(64)` | 创建人 |
 | `modifier` | `varchar(64)` | 修改人 |
 
-### 8.16 `sophic_agent_session`
+### 8.16 `sa_session`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1264,12 +1246,12 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.17 `sophic_agent_session_message`
+### 8.17 `sa_session_message`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `session_id` | `varchar(64)` | 外键，关联 `sophic_agent_session.session_id` |
+| `session_id` | `varchar(64)` | 外键，关联 `sa_session.session_id` |
 | `message_id` | `varchar(64)` | 业务主键，消息 id |
 | `seq_no` | `int` | 消息顺序 |
 | `role` | `varchar(32)` | 消息角色，如 user/assistant/system |
@@ -1279,7 +1261,7 @@
 | `metadata` | `json` | 扩展信息 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.18 `sophic_agent_task`
+### 8.18 `sa_task`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1302,13 +1284,13 @@
 | `gmt_end` | `datetime` | 结束时间 |
 | `status` | `tinyint` | 状态 |
 
-### 8.19 `sophic_agent_high_code_deploy_record`
+### 8.19 `sa_high_code_deploy_record`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `deploy_id` | `varchar(64)` | 业务主键，部署记录 id |
-| `service_id` | `varchar(64)` | 外键，关联 `sophic_agent_high_code_service.service_id` |
+| `service_id` | `varchar(64)` | 外键，关联 `sa_high_code_service.service_id` |
 | `service_version` | `varchar(32)` | 外键的一部分，关联高代码服务版本 |
 | `package_type` | `varchar(32)` | 制品类型，如 `jar/docker` |
 | `package_uri` | `varchar(512)` | 制品地址快照 |
@@ -1322,7 +1304,7 @@
 | `gmt_end` | `datetime` | 结束时间 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.20 `sophic_agent_execution_step`
+### 8.20 `sa_execution_step`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1343,13 +1325,13 @@
 | `error_message` | `varchar(1024)` | 错误信息 |
 | `status` | `tinyint` | 状态 |
 
-### 8.21 `sophic_agent_high_code_operation_log`
+### 8.21 `sa_high_code_operation_log`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `operation_id` | `varchar(64)` | 业务主键，操作流水 id |
-| `service_id` | `varchar(64)` | 外键，关联 `sophic_agent_high_code_service.service_id` |
+| `service_id` | `varchar(64)` | 外键，关联 `sa_high_code_service.service_id` |
 | `instance_id` | `varchar(64)` | 外键，关联 `smc_instance.instance_id`，可为空 |
 | `operation_type` | `varchar(32)` | 操作类型，如 `START/STOP/RESTART/SCALE/OFFLINE` |
 | `request_payload` | `json` | 操作请求快照 |
@@ -1359,7 +1341,7 @@
 | `operator_id` | `varchar(64)` | 操作人 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.22 `sophic_agent_knowledge_base`
+### 8.22 `sa_knowledge_base`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1378,7 +1360,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.23 `sophic_agent_knowledge_document`
+### 8.23 `sa_knowledge_document`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1403,7 +1385,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.24 `sophic_agent_knowledge_chunk`
+### 8.24 `sa_knowledge_chunk`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1416,7 +1398,7 @@
 | `vector_id` | `varchar(128)` | 向量索引 id |
 | `status` | `tinyint` | 状态 |
 
-### 8.25 `sophic_agent_tool`
+### 8.25 `sa_tool`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1430,7 +1412,7 @@
 | `source_asset_type` | `varchar(32)` | 来源资产类型，支持 `AGENT`、`WORKFLOW`、`HIGH_CODE_SERVICE` |
 | `source_asset_id` | `varchar(64)` | 来源资产 id |
 | `source_asset_version` | `varchar(32)` | 来源资产版本 |
-| `publish_id` | `varchar(64)` | 外键，关联 `sophic_agent_publish_record.publish_id` |
+| `publish_id` | `varchar(64)` | 外键，关联 `sa_publish_record.publish_id` |
 | `api_schema` | `longtext` | 接口 schema |
 | `config` | `longtext` | 工具配置 |
 | `test_status` | `tinyint` | 测试状态，1 未测试/2 通过/3 失败 |
@@ -1442,7 +1424,7 @@
 | `creator` | `varchar(64)` | 创建人 |
 | `modifier` | `varchar(64)` | 修改人 |
 
-### 8.26 `sophic_agent_tool_version`
+### 8.26 `sa_tool_version`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1455,7 +1437,7 @@
 | `status` | `tinyint` | 状态 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.27 `sophic_agent_tool_debug_record`
+### 8.27 `sa_tool_debug_record`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1468,7 +1450,7 @@
 | `cost_ms` | `bigint` | 耗时 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.28 `sophic_agent_mcp_server`
+### 8.28 `sa_mcp_server`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1492,13 +1474,13 @@
 | `creator` | `varchar(64)` | 创建人 |
 | `modifier` | `varchar(64)` | 修改人 |
 
-### 8.29 `sophic_agent_mcp_server_instance`
+### 8.29 `sa_mcp_server_instance`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `instance_id` | `varchar(64)` | 业务主键，实例 id |
-| `server_code` | `varchar(64)` | 外键，关联 `sophic_agent_mcp_server.server_code` |
+| `server_code` | `varchar(64)` | 外键，关联 `sa_mcp_server.server_code` |
 | `instance_name` | `varchar(255)` | 实例名称 |
 | `endpoint` | `varchar(1024)` | 实例访问地址 |
 | `health_status` | `varchar(32)` | 健康状态 |
@@ -1506,7 +1488,7 @@
 | `gmt_last_heartbeat` | `datetime` | 最后心跳时间 |
 | `metadata` | `json` | 扩展元数据 |
 
-### 8.30 `sophic_agent_memory_short_term`
+### 8.30 `sa_memory_short_term`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1518,7 +1500,7 @@
 | `metadata` | `json` | 扩展信息 |
 | `expired_at` | `datetime` | 过期时间 |
 
-### 8.32 `sophic_agent_memory_library`
+### 8.32 `sa_memory_library`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1531,7 +1513,7 @@
 | `permission_scope` | `varchar(64)` | 权限范围 |
 | `status` | `tinyint` | 状态 |
 
-### 8.33 `sophic_agent_memory_rule`
+### 8.33 `sa_memory_rule`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1545,7 +1527,7 @@
 | `enabled` | `tinyint` | 是否启用 |
 | `status` | `tinyint` | 状态 |
 
-### 8.34 `sophic_agent_memory_long_term`
+### 8.34 `sa_memory_long_term`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1568,7 +1550,7 @@
 | `last_hit_time` | `datetime` | 最后命中时间 |
 | `status` | `tinyint` | 状态 |
 
-### 8.35 `sophic_agent_memory_hit_record`
+### 8.35 `sa_memory_hit_record`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1581,7 +1563,7 @@
 | `similarity_score` | `decimal(10,4)` | 相似度分数 |
 | `status` | `tinyint` | 状态 |
 
-### 8.36 `sophic_agent_memory_entity`
+### 8.36 `sa_memory_entity`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1595,7 +1577,7 @@
 | `metadata` | `json` | 扩展信息 |
 | `status` | `tinyint` | 状态 |
 
-### 8.38 `sophic_agent_memory_recall_test`
+### 8.38 `sa_memory_recall_test`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1608,7 +1590,7 @@
 | `score_detail` | `json` | 评分明细 |
 | `status` | `tinyint` | 状态 |
 
-### 8.39 `sophic_agent_datasource`
+### 8.39 `sa_datasource`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1628,7 +1610,7 @@
 | `gmt_last_sync` | `datetime` | 最后同步时间 |
 | `status` | `tinyint` | 状态 |
 
-### 8.40 `sophic_agent_datasource_table`
+### 8.40 `sa_datasource_table`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1642,7 +1624,7 @@
 | `is_deleted` | `tinyint` | 逻辑删除标识 |
 | `status` | `tinyint` | 状态 |
 
-### 8.41 `sophic_agent_datasource_field`
+### 8.41 `sa_datasource_field`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1661,7 +1643,7 @@
 | `is_deleted` | `tinyint` | 逻辑删除标识 |
 | `status` | `tinyint` | 状态 |
 
-### 8.42 `sophic_agent_datasource_relation`
+### 8.42 `sa_datasource_relation`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1676,7 +1658,7 @@
 | `description` | `varchar(1024)` | 关系描述 |
 | `status` | `tinyint` | 状态 |
 
-### 8.43 `sophic_agent_datasource_semantic_model`
+### 8.43 `sa_datasource_semantic_model`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1694,7 +1676,7 @@
 | `metadata` | `json` | 扩展信息 |
 | `status` | `tinyint` | 状态 |
 
-### 8.44 `sophic_agent_invoke_log`
+### 8.44 `sa_invoke_log`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1713,7 +1695,7 @@
 | `status` | `tinyint` | 状态 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.45 `sophic_agent_runtime_metric`
+### 8.45 `sa_runtime_metric`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1731,7 +1713,7 @@
 | `collect_time` | `datetime` | 采集时间 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.46 `sophic_agent_guardrail_rule`
+### 8.46 `sa_guardrail_rule`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1748,7 +1730,7 @@
 | `enabled` | `tinyint` | 是否启用 |
 | `status` | `tinyint` | 状态 |
 
-### 8.47 `sophic_agent_guardrail_fixed_reply`
+### 8.47 `sa_guardrail_fixed_reply`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1765,7 +1747,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.48 `sophic_agent_agent_feedback`
+### 8.48 `sa_agent_feedback`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1780,7 +1762,7 @@
 | `status` | `tinyint` | 状态 |
 | `gmt_create` | `datetime` | 创建时间 |
 
-### 8.49 `sophic_agent_tag`
+### 8.49 `sa_tag`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1797,12 +1779,12 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.49.1 `sophic_agent_tag_binding`
+### 8.49.1 `sa_tag_binding`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
-| `tag_id` | `varchar(64)` | 外键，关联 `sophic_agent_tag.tag_id` |
+| `tag_id` | `varchar(64)` | 外键，关联 `sa_tag.tag_id` |
 | `target_type` | `varchar(64)` | 绑定对象类型，支持 `AGENT_TEMPLATE/AGENT/WORKFLOW/MCP_SERVER/TOOL/DATASOURCE/KNOWLEDGE_BASE/MEMORY_LIBRARY/MODEL/EVAL_DATASET_ITEM` |
 | `target_id` | `varchar(64)` | 绑定对象 id |
 | `target_version` | `varchar(32)` | 绑定对象版本，可为空 |
@@ -1811,7 +1793,7 @@
 | `gmt_create` | `datetime` | 创建时间 |
 | `gmt_modified` | `datetime` | 修改时间 |
 
-### 8.50 `sophic_agent_publish_record`
+### 8.50 `sa_publish_record`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1831,7 +1813,7 @@
 | `gmt_create` | `datetime` | 发布时间 |
 | `gmt_modified` | `datetime` | 变更时间 |
 
-### 8.51 `sophic_agent_eval_dataset`
+### 8.51 `sa_eval_dataset`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1843,7 +1825,7 @@
 | `owner_user_id` | `varchar(64)` | 所有者 |
 | `status` | `tinyint` | 状态 |
 
-### 8.52 `sophic_agent_eval_dataset_item`
+### 8.52 `sa_eval_dataset_item`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1854,7 +1836,7 @@
 | `reference_answer` | `text` | 参考答案 |
 | `conversation_context` | `json/longtext` | 多轮上下文 |
 
-### 8.53 `sophic_agent_eval_task`
+### 8.53 `sa_eval_task`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1872,7 +1854,7 @@
 | `gmt_end` | `datetime` | 结束时间 |
 | `status` | `tinyint` | 状态 |
 
-### 8.54 `sophic_agent_eval_result`
+### 8.54 `sa_eval_result`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1889,7 +1871,7 @@
 | `score_detail` | `json` | 评分明细 |
 | `status` | `tinyint` | 状态 |
 
-### 8.55 `sophic_agent_perf_test_task`
+### 8.55 `sa_perf_test_task`
 
 | 属性名 | 类型 | 说明 |
 |---|---|---|
@@ -1953,3 +1935,4 @@
 | `version` | `varchar(50)` | 版本 |
 | `last_offline_time` | `datetime` | 最近离线时间 |
 | `weight` | `int` | 权重，默认 1 |
+

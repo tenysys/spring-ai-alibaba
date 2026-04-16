@@ -1,5 +1,10 @@
 -- SophicAgent V1 schema
 -- MySQL 8.x
+-- Primary key convention:
+-- 1. New SophicAgent tables use `id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT` as physical primary key.
+-- 2. Main business entities add `xxx_id` as business identifier and optionally `xxx_code` as readable code.
+-- 3. Business associations prefer `xxx_id` instead of exposing auto-increment `id`.
+-- 4. Existing stock tables keep their current structure and are not forcibly refactored by this schema rule.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
