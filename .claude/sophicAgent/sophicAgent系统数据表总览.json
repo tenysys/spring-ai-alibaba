@@ -1,0 +1,478 @@
+[
+  {
+    "seq": 1,
+    "module": "账号权限域",
+    "desc": "平台基础用户主表",
+    "table": "users",
+    "status": "已有"
+  },
+  {
+    "seq": 2,
+    "module": "账号权限域",
+    "desc": "用户基础资料表",
+    "table": "user_info",
+    "status": "已有"
+  },
+  {
+    "seq": 3,
+    "module": "账号权限域",
+    "desc": "用户扩展资料表",
+    "table": "user_additional_info",
+    "status": "已有"
+  },
+  {
+    "seq": 4,
+    "module": "账号权限域",
+    "desc": "用户登录流水表",
+    "table": "user_login",
+    "status": "已有"
+  },
+  {
+    "seq": 5,
+    "module": "账号权限域",
+    "desc": "密码签名与摘要表",
+    "table": "user_sign",
+    "status": "已有"
+  },
+  {
+    "seq": 6,
+    "module": "账号权限域",
+    "desc": "用户组表",
+    "table": "priv_group",
+    "status": "已有"
+  },
+  {
+    "seq": 7,
+    "module": "账号权限域",
+    "desc": "角色表",
+    "table": "priv_role",
+    "status": "已有"
+  },
+  {
+    "seq": 8,
+    "module": "账号权限域",
+    "desc": "权限点定义表",
+    "table": "priv_permission",
+    "status": "已有"
+  },
+  {
+    "seq": 9,
+    "module": "账号权限域",
+    "desc": "菜单与页面资源表",
+    "table": "priv_menu_resource",
+    "status": "已有"
+  },
+  {
+    "seq": 10,
+    "module": "账号权限域",
+    "desc": "权限点与菜单映射表",
+    "table": "priv_menu_access",
+    "status": "已有"
+  },
+  {
+    "seq": 11,
+    "module": "账号权限域",
+    "desc": "用户组与角色关系表",
+    "table": "priv_group_role_relation",
+    "status": "已有"
+  },
+  {
+    "seq": 12,
+    "module": "账号权限域",
+    "desc": "角色与权限点关系表",
+    "table": "priv_role_permission_relation",
+    "status": "已有"
+  },
+  {
+    "seq": 13,
+    "module": "账号权限域",
+    "desc": "用户与用户组关系表",
+    "table": "priv_user_group_relation",
+    "status": "已有"
+  },
+  {
+    "seq": 14,
+    "module": "账号权限域",
+    "desc": "SophicAgent API 凭证表",
+    "table": "sa_api_key",
+    "status": "新增"
+  },
+  {
+    "seq": 15,
+    "module": "账号权限域",
+    "desc": "统一资源注册表",
+    "table": "sa_resource",
+    "status": "新增"
+  },
+  {
+    "seq": 16,
+    "module": "账号权限域",
+    "desc": "资源访问控制表",
+    "table": "sa_resource_acl",
+    "status": "新增"
+  },
+  {
+    "seq": 17,
+    "module": "应用与设计器域",
+    "desc": "通用智能体模板表",
+    "table": "sa_agent_template",
+    "status": "新增"
+  },
+  {
+    "seq": 18,
+    "module": "应用与设计器域",
+    "desc": "应用主表",
+    "table": "sa_application",
+    "status": "新增"
+  },
+  {
+    "seq": 19,
+    "module": "应用与设计器域",
+    "desc": "应用版本表",
+    "table": "sa_application_version",
+    "status": "新增"
+  },
+  {
+    "seq": 20,
+    "module": "应用与设计器域",
+    "desc": "应用挂载组件表",
+    "table": "sa_application_binding",
+    "status": "新增"
+  },
+  {
+    "seq": 21,
+    "module": "应用与设计器域",
+    "desc": "挂载组件明细表",
+    "table": "sa_application_binding_item",
+    "status": "新增"
+  },
+  {
+    "seq": 22,
+    "module": "应用与设计器域",
+    "desc": "高代码服务主表",
+    "table": "sa_high_code_service",
+    "status": "新增"
+  },
+  {
+    "seq": 23,
+    "module": "应用与设计器域",
+    "desc": "高代码服务版本表",
+    "table": "sa_high_code_service_version",
+    "status": "新增"
+  },
+  {
+    "seq": 24,
+    "module": "应用与设计器域",
+    "desc": "规则干预配置表",
+    "table": "sa_guardrail_rule",
+    "status": "新增"
+  },
+  {
+    "seq": 25,
+    "module": "应用与设计器域",
+    "desc": "固定问题回复配置表",
+    "table": "sa_guardrail_fixed_reply",
+    "status": "新增"
+  },
+  {
+    "seq": 26,
+    "module": "运行时域",
+    "desc": "会话主表",
+    "table": "sa_session",
+    "status": "新增"
+  },
+  {
+    "seq": 27,
+    "module": "运行时域",
+    "desc": "会话消息表",
+    "table": "sa_session_message",
+    "status": "新增"
+  },
+  {
+    "seq": 28,
+    "module": "运行时域",
+    "desc": "单次执行主表",
+    "table": "sa_task",
+    "status": "新增"
+  },
+  {
+    "seq": 29,
+    "module": "运行时域",
+    "desc": "高代码部署记录表",
+    "table": "sa_high_code_deploy_record",
+    "status": "新增"
+  },
+  {
+    "seq": 30,
+    "module": "运行时域",
+    "desc": "高代码操作流水表",
+    "table": "sa_high_code_operation_log",
+    "status": "新增"
+  },
+  {
+    "seq": 31,
+    "module": "运行时域",
+    "desc": "执行步骤明细表",
+    "table": "sa_execution_step",
+    "status": "新增"
+  },
+  {
+    "seq": 32,
+    "module": "运行时域",
+    "desc": "运行应用表",
+    "table": "smc_application",
+    "status": "已有"
+  },
+  {
+    "seq": 33,
+    "module": "运行时域",
+    "desc": "通用服务表",
+    "table": "smc_service",
+    "status": "已有"
+  },
+  {
+    "seq": 34,
+    "module": "运行时域",
+    "desc": "服务实例表",
+    "table": "smc_instance",
+    "status": "已有"
+  },
+  {
+    "seq": 35,
+    "module": "能力资产域",
+    "desc": "知识库主表",
+    "table": "sa_knowledge_base",
+    "status": "新增"
+  },
+  {
+    "seq": 36,
+    "module": "能力资产域",
+    "desc": "知识文档表",
+    "table": "sa_knowledge_document",
+    "status": "新增"
+  },
+  {
+    "seq": 37,
+    "module": "能力资产域",
+    "desc": "知识分片表",
+    "table": "sa_knowledge_chunk",
+    "status": "新增"
+  },
+  {
+    "seq": 38,
+    "module": "能力资产域",
+    "desc": "工具主表",
+    "table": "sa_tool",
+    "status": "新增"
+  },
+  {
+    "seq": 39,
+    "module": "能力资产域",
+    "desc": "工具版本表",
+    "table": "sa_tool_version",
+    "status": "新增"
+  },
+  {
+    "seq": 40,
+    "module": "能力资产域",
+    "desc": "工具调试记录表",
+    "table": "sa_tool_debug_record",
+    "status": "新增"
+  },
+  {
+    "seq": 41,
+    "module": "能力资产域",
+    "desc": "MCP 服务主表",
+    "table": "sa_mcp_server",
+    "status": "新增"
+  },
+  {
+    "seq": 42,
+    "module": "能力资产域",
+    "desc": "MCP 服务实例表",
+    "table": "sa_mcp_server_instance",
+    "status": "新增"
+  },
+  {
+    "seq": 43,
+    "module": "能力资产域",
+    "desc": "短期记忆表",
+    "table": "sa_memory_short_term",
+    "status": "新增"
+  },
+  {
+    "seq": 44,
+    "module": "能力资产域",
+    "desc": "记忆库主表",
+    "table": "sa_memory_library",
+    "status": "新增"
+  },
+  {
+    "seq": 45,
+    "module": "能力资产域",
+    "desc": "记忆规则表",
+    "table": "sa_memory_rule",
+    "status": "新增"
+  },
+  {
+    "seq": 46,
+    "module": "能力资产域",
+    "desc": "长期记忆表",
+    "table": "sa_memory_long_term",
+    "status": "新增"
+  },
+  {
+    "seq": 47,
+    "module": "能力资产域",
+    "desc": "记忆命中记录表",
+    "table": "sa_memory_hit_record",
+    "status": "新增"
+  },
+  {
+    "seq": 48,
+    "module": "能力资产域",
+    "desc": "记忆实体表",
+    "table": "sa_memory_entity",
+    "status": "新增"
+  },
+  {
+    "seq": 49,
+    "module": "能力资产域",
+    "desc": "记忆召回测试表",
+    "table": "sa_memory_recall_test",
+    "status": "新增"
+  },
+  {
+    "seq": 50,
+    "module": "能力资产域",
+    "desc": "数据源主表",
+    "table": "sa_datasource",
+    "status": "新增"
+  },
+  {
+    "seq": 51,
+    "module": "能力资产域",
+    "desc": "数据表元数据表",
+    "table": "sa_datasource_table",
+    "status": "新增"
+  },
+  {
+    "seq": 52,
+    "module": "能力资产域",
+    "desc": "数据字段元数据表",
+    "table": "sa_datasource_field",
+    "status": "新增"
+  },
+  {
+    "seq": 53,
+    "module": "能力资产域",
+    "desc": "数据源逻辑关系表",
+    "table": "sa_datasource_relation",
+    "status": "新增"
+  },
+  {
+    "seq": 54,
+    "module": "能力资产域",
+    "desc": "数据源语义配置表",
+    "table": "sa_datasource_semantic_model",
+    "status": "新增"
+  },
+  {
+    "seq": 55,
+    "module": "治理观测与运营域",
+    "desc": "模型供应商表",
+    "table": "sa_model_provider",
+    "status": "新增"
+  },
+  {
+    "seq": 56,
+    "module": "治理观测与运营域",
+    "desc": "模型定义表",
+    "table": "sa_model",
+    "status": "新增"
+  },
+  {
+    "seq": 57,
+    "module": "治理观测与运营域",
+    "desc": "模型接入配置表",
+    "table": "sa_model_config",
+    "status": "新增"
+  },
+  {
+    "seq": 58,
+    "module": "治理观测与运营域",
+    "desc": "调用日志表",
+    "table": "sa_invoke_log",
+    "status": "新增"
+  },
+  {
+    "seq": 59,
+    "module": "治理观测与运营域",
+    "desc": "运行指标表",
+    "table": "sa_runtime_metric",
+    "status": "新增"
+  },
+  {
+    "seq": 60,
+    "module": "治理观测与运营域",
+    "desc": "应用反馈表",
+    "table": "sa_agent_feedback",
+    "status": "新增"
+  },
+  {
+    "seq": 61,
+    "module": "治理观测与运营域",
+    "desc": "标签主表",
+    "table": "sa_tag",
+    "status": "新增"
+  },
+  {
+    "seq": 62,
+    "module": "治理观测与运营域",
+    "desc": "标签绑定关系表",
+    "table": "sa_tag_binding",
+    "status": "新增"
+  },
+  {
+    "seq": 63,
+    "module": "治理观测与运营域",
+    "desc": "发布记录表",
+    "table": "sa_publish_record",
+    "status": "新增"
+  },
+  {
+    "seq": 64,
+    "module": "治理观测与运营域",
+    "desc": "评测集主表",
+    "table": "sa_eval_dataset",
+    "status": "新增"
+  },
+  {
+    "seq": 65,
+    "module": "治理观测与运营域",
+    "desc": "评测集样本表",
+    "table": "sa_eval_dataset_item",
+    "status": "新增"
+  },
+  {
+    "seq": 66,
+    "module": "治理观测与运营域",
+    "desc": "评测任务表",
+    "table": "sa_eval_task",
+    "status": "新增"
+  },
+  {
+    "seq": 67,
+    "module": "治理观测与运营域",
+    "desc": "评测结果表",
+    "table": "sa_eval_result",
+    "status": "新增"
+  },
+  {
+    "seq": 68,
+    "module": "治理观测与运营域",
+    "desc": "压测任务表",
+    "table": "sa_perf_test_task",
+    "status": "新增"
+  }
+]

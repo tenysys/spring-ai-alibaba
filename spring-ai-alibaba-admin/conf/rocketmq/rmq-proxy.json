@@ -1,0 +1,1 @@
+{"rocketMQClusterName":"DefaultCluster","namesrvAddr":"rmq_namesrv:9876","grpcServerPort":18080,"grpcServerPortForInner":18081}
