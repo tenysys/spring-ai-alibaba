@@ -111,43 +111,43 @@
 
 - `users`（已有）
   - 用户信息表。
-  - 关键字段：`ID`、`NAME`、`PASSWORD`、`ENABLED`、`TYPE`、`SALT`
+  - 关键字段：`ID varchar(128)`、`NAME varchar(64) unique`、`PASSWORD varchar(256)`、`ENABLED decimal(1)`、`TYPE decimal(1)`、`SALT varchar(32)`
 - `user_info`（已有）
   - 用户个人信息表。
-  - 关键字段：`USER_ID`、`PHONE`、`E_MAIL`、`POSITION`、`DESCRIPTION`、`ORG_ID`、`ORDERNUM`、`CREATE_TIME`、`PWD_CHANGE_TIME`
+  - 关键字段：`USER_ID varchar(128)`、`PHONE varchar(32)`（`phone_index`）、`E_MAIL varchar(100)`、`POSITION varchar(100)`、`DESCRIPTION varchar(100)`、`ORG_ID varchar(128)`、`ORDERNUM decimal(8)`、`CREATE_TIME datetime`、`PWD_CHANGE_TIME datetime`
 - `user_additional_info`（已有）
   - 用户额外信息表。
-  - 关键字段：`user_id`、`person_name`、`aornum`、`nationality`、`sex`、`card_type`、`id_card`、`create_time`、`major`、`annex`、`avatar`、`additional_info`、`source`
+  - 关键字段：`user_id varchar(128)`、`person_name varchar(32)`、`aornum varchar(64)`、`nationality varchar(32)`、`sex int(1)`、`card_type varchar(16)`、`id_card varchar(32)`、`create_time datetime`、`major int(1)`、`annex varchar(32)`、`avatar varchar(32)`、`additional_info varchar(4096)`、`source varchar(10)`
 - `user_login`（已有）
   - 用户登录信息表。
-  - 关键字段：`USER_ID`、`TOKEN`、`USER_ROLE`、`SERVER_NAME`、`CLIENT_IP`、`CLIENT_BROWSER`、`LOGIN_STATUS`、`LOGIN_TIME`、`LOGOUT_TIME`、`LOGIN_ERR_TIMES`、`LOGIN_ERR_MSG`、`ONLINE_TIME`
+  - 关键字段：`USER_ID varchar(128)`、`TOKEN varchar(1024)`、`USER_ROLE varchar(256)`、`SERVER_NAME varchar(20)`、`CLIENT_IP varchar(100)`、`CLIENT_BROWSER varchar(1024)`、`LOGIN_STATUS decimal(1)`、`LOGIN_TIME datetime`、`LOGOUT_TIME datetime`、`LOGIN_ERR_TIMES decimal(2)`、`LOGIN_ERR_MSG varchar(256)`、`ONLINE_TIME bigint`
 - `user_sign`（已有）
   - 用户密码签名信息表。
-  - 关键字段：`user_id`、`digest`、`last_modified_time`
+  - 关键字段：`user_id varchar(128)`、`digest varchar(128)`、`last_modified_time datetime`
 - `priv_group`（已有）
   - 用户组表。
-  - 关键字段：`id`、`name`、`type`、`create_time`、`update_time`、`enable`、`description`
+  - 关键字段：`id varchar(32)`、`name varchar(255)`、`type varchar(32)`、`create_time datetime`、`update_time datetime`、`enable tinyint(1)`、`description varchar(255)`
 - `priv_role`（已有）
   - 角色表。
-  - 关键字段：`id`、`name`、`update_time`、`description`、`is_default`、`type`、`fid`
+  - 关键字段：`id varchar(32)`、`name varchar(255)`（`name_index`）、`update_time datetime`、`description varchar(255)`、`is_default tinyint(1)`、`type varchar(32)`、`fid varchar(32)`
 - `priv_permission`（已有）
   - 权限表。
-  - 关键字段：`id`、`service_id`、`name`、`permission`、`description`、`type`、`is_default`
+  - 关键字段：`id varchar(32)`、`service_id varchar(32)`、`name varchar(255)`、`permission varchar(255)`、`description varchar(255)`、`type varchar(32)`、`is_default tinyint(1)`
 - `priv_menu_resource`（已有）
   - 菜单表，用于定义系统菜单、页面入口和菜单树结构。
-  - 关键字段：`id`、`service_id`、`type`、`seq`、`name`、`route`、`icon`、`params`、`description`、`fid`
+  - 关键字段：`id varchar(32)`、`service_id varchar(32)`、`type varchar(32)`、`seq int`、`name varchar(255)`、`route varchar(255)`、`icon varchar(80)`、`params varchar(4096)`、`description varchar(255)`、`fid varchar(32)`
 - `priv_menu_access`（已有）
   - 菜单类权限关联表，用于建立权限点与菜单/菜单元素之间的映射关系。
-  - 关键字段：`per_id`、`menu_id`、`ele_id`
+  - 关键字段：`per_id varchar(32)`、`menu_id varchar(32)`、`ele_id varchar(32)`；主键为 `per_id`，索引为 `menu_index(menu_id, ele_id)`
 - `priv_group_role_relation`（已有）
   - 组角色关联表。
-  - 关键字段：`group_id`、`role_id`
+  - 关键字段：`group_id varchar(32)`、`role_id varchar(32)`；联合主键 `(group_id, role_id)`
 - `priv_role_permission_relation`（已有）
   - 角色权限关联表。
-  - 关键字段：`role_id`、`permission_id`
+  - 关键字段：`role_id varchar(32)`、`permission_id varchar(32)`；联合主键 `(role_id, permission_id)`
 - `priv_user_group_relation`（已有）
   - 用户组关联表。
-  - 关键字段：`user_id`、`group_id`
+  - 关键字段：`user_id varchar(128)`、`group_id varchar(32)`；联合主键 `(user_id, group_id)`
 - `sa_api_key`
   - SophicAgent 侧 API 调用凭证表。
   - 关键字段：`group_id`、`user_id`、`api_key`、`description`、`expired_at`、`status`
@@ -402,13 +402,13 @@
   - 关键字段：`task_id`、`step_no`、`step_id`、`step_type`、`step_name`、`step_desc`、`executor_type`、`tool_ref`、`input_snapshot`、`output_snapshot`、`thought_snapshot`、`cost_ms`、`error_code`、`error_message`、`status`
 - `smc_application`（已有）
   - 高代码运行应用表，用于管理运行平台中的应用归属信息。
-  - 关键字段：`application_id`、`application_name`、`owner`、`create_time`、`note`、`seq`
+  - 关键字段：`application_id varchar(32)`、`application_name varchar(50)`、`owner varchar(32)`、`create_time timestamp`、`note varchar(255)`、`seq int`
 - `smc_service`（已有）
   - Nacos 通用服务表，用于承载从 Nacos 获取的服务定义信息，不只包含高代码服务。
-  - 关键字段：`id`、`service_name`、`source`、`params`、`type`、`create_time`、`update_time`、`note`、`version`、`service_info`、`ref_application`、`seq`
+  - 关键字段：`id varchar(64)`、`service_name varchar(255)`、`source varchar(32)`、`params varchar(1024)`、`type varchar(32)`、`create_time datetime`、`update_time datetime`、`note varchar(255)`、`version varchar(255)`、`service_info varchar(50)`、`ref_application varchar(50)`、`seq int`
 - `smc_instance`（已有）
   - 高代码服务实例表，用于管理服务实例运行状态、地址与启停可用性。
-  - 关键字段：`instance_id`、`service_id`、`ip`、`port`、`type`、`instance_mode`、`fingerprint`、`enabled`、`update_time`、`insert_time`、`version`、`last_offline_time`、`weight`
+  - 关键字段：`instance_id varchar(32)`、`service_id varchar(255)`、`ip varchar(64)`、`port int`、`version varchar(64)`、`type varchar(64)`、`instance_mode varchar(64)`、`fingerprint varchar(64)`、`enabled tinyint(1)`、`update_time datetime`、`insert_time timestamp`、`last_offline_time datetime`、`weight int`
 
 说明：
 
@@ -458,7 +458,7 @@
   - 关键字段：`server_code`、`name`、`description`、`source`、`deploy_env`、`type`、`deploy_config`、`user_id`、`status`、`biz_type`、`detail_config`、`host`、`install_type`、`creator`、`modifier`
 - `sa_mcp_server_instance`
   - MCP 服务实例表，支撑服务实例列表、健康状态、运行控制。
-  - 关键字段：`instance_id`、`server_code`、`instance_name`、`endpoint`、`health_status`、`runtime_status`、`gmt_last_heartbeat`、`metadata`
+  - 关键字段：`instance_id`、`server_code`、`instance_name`、`endpoint`、`health_status`、`runtime_status`、`metadata`
 
 #### 3.4.3 记忆资产
 
@@ -470,10 +470,10 @@
   - 关键字段：`memory_library_id`、`library_code`、`name`、`description`、`owner_user_id`、`permission_scope`、`status`
 - `sa_memory_rule`
   - 记忆规则表，一个记忆库可配置多条规则。
-  - 关键字段：`rule_id`、`memory_library_id`、`rule_name`、`extract_mode`、`expire_days`、`rule_content`、`enabled`、`status`
+  - 关键字段：`rule_id`、`memory_library_id`、`rule_name`、`expire_days`、`rule_content`、`enabled`、`status`
 - `sa_memory_long_term`
   - 长期记忆明细表。
-  - 关键字段：`memory_library_id`、`agent_id`、`user_id`、`memory_id`、`entity_id`、`session_id`、`content`、`summary_content`、`memory_type`、`rule_snapshot`、`metadata`、`embedding_ref`、`score`、`expired_at`、`hit_count`、`last_hit_time`、`status`
+  - 关键字段：`memory_library_id`、`agent_id`、`user_id`、`memory_id`、`entity_id`、`session_id`、`content`、`summary_content`、`rule_snapshot`、`metadata`、`embedding_ref`、`score`、`expired_at`、`hit_count`、`last_hit_time`、`status`
 - `sa_memory_hit_record`
   - 记忆命中记录表。
   - 关键字段：`hit_id`、`memory_library_id`、`memory_id`、`task_id`、`query_text`、`similarity_score`、`status`
@@ -494,7 +494,7 @@
 
 - `sa_datasource`
   - 数据源主表。
-  - 关键字段：`datasource_id`、`datasource_code`、`datasource_name`、`schema_type`、`datasource_type`、`host`、`port`、`database_name`、`username`、`password_cipher`、`connection_url`、`connect_config`、`gmt_last_sync`、`status`
+  - 关键字段：`datasource_id`、`datasource_name`、`schema_type`、`datasource_type`、`host`、`port`、`database_name`、`username`、`password`、`connection_url`、`description`、`datasource_status`、`gmt_create_time`、`gmt_update_time`
 - `sa_datasource_table`
   - 数据源表元数据。
   - 关键字段：`datasource_id`、`table_id`、`schema_name`、`table_name`、`table_comment`、`refresh_version`、`is_deleted`、`status`
@@ -821,68 +821,39 @@
 
 ## 6. 核心索引建议
 
-- `sa_agent_template(template_type, scene_type, status)`
-- `sa_application(type, status)`
+### 6.1 索引设计原则
+
+- 单表索引优先控制在 `3~5` 组以内；超过 `5` 组必须有明确查询语句支撑。
+- `status`、`enabled`、`type` 等低选择性字段不单独建索引，优先放入复合索引尾部。
+- 高频写表如 `sa_task`、`sa_session_message`、`sa_invoke_log`、`sa_runtime_metric` 只保留“业务唯一键 + 1~2 组核心复合索引”。
+- 本节索引为首批落库索引，其他候选索引应在慢 SQL 和执行计划验证后追加。
+
+### 6.2 首批落库索引
+
+- `sa_application(agent_code)`
+- `sa_application(type, scene_type, status)`
 - `sa_application_version(agent_id, version)`
 - `sa_application_binding(agent_id, agent_version)`
 - `sa_application_binding(resource_type, resource_id, status)`
-- `sa_application_binding_item(binding_id, status, sort_no)`
-- `sa_task(session_id, trigger_message_id, status, gmt_start)`
+- `sa_session(user_id, gmt_last_active)`
+- `sa_session(agent_id, status, gmt_last_active)`
+- `sa_session_message(session_id, seq_no)`
+- `sa_task(session_id, gmt_start)`
 - `sa_task(agent_id, agent_version, status, gmt_start)`
-- `sa_high_code_deploy_record(service_id, service_version, deploy_env, gmt_start)`
-- `sa_high_code_operation_log(service_id, operation_type, gmt_create)`
-- `sa_model(provider_code, model_type, enabled, status)`
-- `sa_model_config(model_id, enabled, status)`
-- `sa_model_config(provider_code, model_id, enabled, status)`
 - `sa_execution_step(task_id, step_no)`
-- `smc_service(ref_application, type, update_time)`
-- `smc_instance(service_id, enabled, update_time)`
-- `sa_session(agent_id, user_id, gmt_last_active)`
-- `sa_session(user_id, status, gmt_last_active)`
-- `sa_session_message(session_id, gmt_create)`
 - `sa_invoke_log(task_id, gmt_create)`
-- `sa_invoke_log(agent_id, invoke_type, status, gmt_create)`
+- `sa_invoke_log(agent_id, invoke_type, gmt_create)`
 - `sa_runtime_metric(target_type, target_id, metric_name, collect_time)`
 - `sa_runtime_metric(target_type, target_id, target_version, stat_granularity, collect_time)`
-- `sa_knowledge_document(kb_id, index_status, status)`
-- `sa_mcp_server(status, name)`
-- `sa_mcp_server(user_id, status, gmt_modified)`
-- `sa_mcp_server_instance(server_code, runtime_status, health_status)`
-- `sa_tool(source_asset_type, source_asset_id, enabled, status)`
-- `sa_tool(publish_id)`
-- `sa_tool_debug_record(tool_id, gmt_create)`
-- `sa_datasource_field(datasource_id, table_id)`
-- `sa_datasource(datasource_type, schema_type, status)`
-- `sa_datasource(status, gmt_last_sync)`
-- `sa_datasource(datasource_name, status)`
-- `sa_datasource_table(datasource_id, schema_name, table_name, status)`
-- `sa_datasource_relation(datasource_id, source_table_id, target_table_id, status)`
-- `sa_datasource_semantic_model(datasource_id, status, semantic_level)`
-- `sa_datasource_semantic_model(datasource_id, table_id, field_id, semantic_level, status)`
-- `sa_memory_rule(memory_library_id, enabled, status)`
+- `sa_datasource(datasource_name)`
+- `sa_datasource(datasource_type, schema_type, datasource_status)`
+- `sa_datasource(datasource_status, gmt_update_time)`
 - `sa_memory_long_term(memory_library_id, user_id, status, gmt_create)`
-- `sa_memory_long_term(entity_id, status, last_hit_time)`
-- `sa_memory_hit_record(memory_library_id, memory_id, status)`
-- `sa_publish_record(asset_type, asset_id, status)`
-- `sa_publish_record(asset_type, asset_id, asset_version, publish_type, gmt_create)`
-- `sa_publish_record(target_resource_id, publish_type, status, gmt_create)`
-- `sa_eval_dataset_item(dataset_id)`
-- `sa_eval_dataset(owner_user_id, status)`
-- `sa_eval_task(target_type, target_id, status)`
-- `sa_eval_task(dataset_id, status, gmt_start)`
-- `sa_eval_result(eval_task_id, dataset_item_id, status)`
-- `sa_perf_test_task(target_type, target_id, target_version, status, gmt_start)`
-- `sa_perf_test_task(operator_id, status, gmt_start)`
-- `sa_guardrail_rule(agent_id, enabled, status, priority)`
-- `sa_guardrail_fixed_reply(agent_id, rule_id, status, priority)`
-- `sa_agent_feedback(agent_id, gmt_create)`
-- `sa_agent_feedback(task_id)`
-- `sa_agent_feedback(session_id, gmt_create)`
-- `sa_tag_binding(target_type, target_id, status)`
-- `sa_tag_binding(tag_id, status, gmt_create)`
-- `sa_resource_acl(subject_type, subject_id, permission_type, status, resource_id)`
+- `sa_publish_record(asset_type, asset_id, asset_version, gmt_create)`
+- `sa_eval_result(eval_task_id, dataset_item_id)`
+- `sa_resource_acl(resource_id, subject_type, subject_id, permission_type)`
 
-### 6.1 唯一约束建议
+### 6.3 唯一约束建议
 
 - `sa_api_key(api_key)`
 - `sa_resource(resource_id)`
@@ -925,7 +896,6 @@
 - `sa_memory_entity(entity_id)`
 - `sa_memory_recall_test(test_id)`
 - `sa_datasource(datasource_id)`
-- `sa_datasource(datasource_code)`
 - `sa_datasource_table(table_id)`
 - `sa_datasource_field(field_id)`
 - `sa_datasource_relation(relation_id)`
@@ -1485,7 +1455,6 @@
 | `endpoint` | `varchar(1024)` | 实例访问地址 |
 | `health_status` | `varchar(32)` | 健康状态 |
 | `runtime_status` | `varchar(32)` | 运行状态 |
-| `gmt_last_heartbeat` | `datetime` | 最后心跳时间 |
 | `metadata` | `json` | 扩展元数据 |
 
 ### 8.30 `sa_memory_short_term`
@@ -1521,7 +1490,6 @@
 | `rule_id` | `varchar(64)` | 业务主键，规则 id |
 | `memory_library_id` | `varchar(64)` | 外键，关联记忆库 |
 | `rule_name` | `varchar(255)` | 规则名称 |
-| `extract_mode` | `varchar(64)` | 提取模式 |
 | `expire_days` | `int` | 过期天数 |
 | `rule_content` | `json/longtext` | 规则内容 |
 | `enabled` | `tinyint` | 是否启用 |
@@ -1540,7 +1508,6 @@
 | `session_id` | `varchar(64)` | 外键，关联会话 |
 | `content` | `longtext` | 原始记忆内容 |
 | `summary_content` | `text` | 摘要内容 |
-| `memory_type` | `varchar(64)` | 记忆类型 |
 | `rule_snapshot` | `json` | 规则快照 |
 | `metadata` | `json` | 扩展信息 |
 | `embedding_ref` | `varchar(128)` | 向量引用 |
@@ -1596,7 +1563,6 @@
 |---|---|---|
 | `id` | `bigint unsigned` | 主键 |
 | `datasource_id` | `varchar(64)` | 业务主键，数据源 id |
-| `datasource_code` | `varchar(64)` | 数据源编码 |
 | `datasource_name` | `varchar(255)` | 数据源名称 |
 | `schema_type` | `varchar(64)` | 模式类型 |
 | `datasource_type` | `varchar(64)` | 数据源类型 |
@@ -1604,11 +1570,12 @@
 | `port` | `int` | 端口 |
 | `database_name` | `varchar(255)` | 数据库名 |
 | `username` | `varchar(255)` | 用户名 |
-| `password_cipher` | `varchar(512)` | 加密密码 |
+| `password` | `varchar(512)` | 密码密文 |
 | `connection_url` | `varchar(1024)` | 连接串 |
-| `connect_config` | `json` | 连接配置 |
-| `gmt_last_sync` | `datetime` | 最后同步时间 |
-| `status` | `tinyint` | 状态 |
+| `description` | `varchar(512)` | 数据源描述 |
+| `datasource_status` | `tinyint` | 状态 |
+| `gmt_create_time` | `datetime` | 新建时间 |
+| `gmt_update_time` | `datetime` | 最后同步时间 |
 
 ### 8.40 `sa_datasource_table`
 
@@ -1923,16 +1890,16 @@
 | 属性名 | 类型 | 说明 |
 |---|---|---|
 | `instance_id` | `varchar(32)` | 主键，服务实例 id |
-| `service_id` | `varchar(255)` | 外键，关联服务 id |
+| `service_id` | `varchar(255)` | 逻辑关联服务 id |
 | `ip` | `varchar(64)` | IP 地址 |
 | `port` | `int` | 端口 |
+| `version` | `varchar(64)` | 版本信息 |
 | `type` | `varchar(64)` | 类型 |
 | `instance_mode` | `varchar(64)` | 运行模式 |
 | `fingerprint` | `varchar(64)` | 服务指纹 |
 | `enabled` | `tinyint(1)` | 是否可用 |
 | `update_time` | `datetime` | 更新时间 |
-| `insert_time` | `datetime` | 插入时间 |
-| `version` | `varchar(50)` | 版本 |
+| `insert_time` | `timestamp` | 插入时间 |
 | `last_offline_time` | `datetime` | 最近离线时间 |
 | `weight` | `int` | 权重，默认 1 |
 
