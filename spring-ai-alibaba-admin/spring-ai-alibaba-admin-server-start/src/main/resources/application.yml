@@ -73,9 +73,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 支持通过环境变量覆盖，默认值在各个 profile 中定义
     # SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://198.87.103.132:5506/sophic-agent?useUnicode=true&characterEncoding=UTF-8}
-    username: ${SPRING_DATASOURCE_USERNAME:his}
-    password: ${SPRING_DATASOURCE_PASSWORD:His@9700}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/community?useUnicode=true&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:5658}
     druid:
       initial-size: 5
       min-idle: 5
