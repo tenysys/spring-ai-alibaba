@@ -264,6 +264,52 @@ publishApp(appId)
 - 是否可调用 MCP 工具
 - 是否挂载 agent/workflow 组件
 
+### 7.1 promptVariables的配置语义
+
+`AgentConfig.promptVariables` 并不只是简单保存一组“变量名 -> 变量值”，而是保存**提示词变量定义**。
+
+每个变量定义当前主要包含：
+
+- `name`
+- `type`
+- `description`
+- `defaultValue`
+
+因此它更接近于：
+
+```text
+prompt variable definition
+  -> 变量名
+  -> 变量类型
+  -> 变量说明
+  -> 默认值
+```
+
+其中真正参与模板渲染的，是运行时根据这些定义组装出来的变量 map。
+
+### 7.2 变量最终值的两个入口
+
+从当前实现看，提示词变量最终值有两个来源：
+
+1. `AgentConfig.promptVariables[].defaultValue`
+2. `AgentRequest.promptVariables`
+
+可理解为：
+
+```text
+配置层
+  -> 定义有哪些变量
+  -> 为变量提供默认值
+
+请求层
+  -> 为本次调用提供变量覆盖值
+```
+
+因此 `promptVariables` 的运行时语义是：
+
+- 配置决定“有哪些变量可用”
+- 请求决定“本次调用这些变量最终取什么值”
+
 ## 8. 能力关联方式
 
 从目前实现看，`BasicAgent` 与扩展能力的关联方式如下：
@@ -445,6 +491,70 @@ BasicAgent
 
 - 配置来源：`AgentConfig.memory`
 - 运行时形式：memory advisor
+
+进一步看，`BasicAgent` 的记忆能力并不是把历史消息直接保存在 `AgentConfig` 中，而是：
+
+1. 在应用版本配置里声明 `memory.dialogRound`
+2. 请求进入时由服务层判断本次是否启用记忆
+3. 执行器装配 `MessageChatMemoryAdvisor`
+4. advisor 再基于 `conversationId` 到 `ChatMemory` 中读写历史消息
+
+可概括为：
+
+```text
+AgentConfig.memory.dialogRound
+  -> AgentServiceImpl.memoryEnabled(...)
+  -> AgentContext.memoryEnabled = true/false
+  -> BasicAgentExecutor.buildChatClient(...)
+  -> MessageChatMemoryAdvisor
+  -> ChatMemory(conversationId)
+```
+
+#### 8.6.1 记忆配置结构
+
+当前 `AgentConfig.memory` 结构较简单，核心字段是：
+
+- `dialogRound`
+
+其语义是“希望保留的对话轮数上限”。
+
+#### 8.6.2 记忆启用条件
+
+从当前实现看，`BasicAgent` 只有同时满足以下条件才会启用记忆：
+
+- 应用类型是 `AppType.BASIC`
+- `config.getMemory() != null`
+- `config.getMemory().getDialogRound() > 0`
+- `request.getConversationId()` 非空
+
+因此记忆并不是只要配了 `memory` 就一定生效，还依赖请求侧提供会话标识。
+
+#### 8.6.3 记忆的实际存储位置
+
+`BasicAgent` 的会话记忆并不保存在版本表，也不保存在 `AppEntity` 中，而是通过 `ChatMemory` 落到运行时存储。
+
+当前实现中，对话记忆由 `ConversationChatMemory` 承载，底层通过 Redis 保存消息历史。也就是说：
+
+```text
+AppVersionEntity.config
+  -> 保存“是否开启记忆、记忆参数”
+
+Redis ChatMemory
+  -> 保存“真正的会话消息历史”
+```
+
+#### 8.6.4 会话维度
+
+记忆读取和写入不是只按 `request.conversationId` 区分，而是会进一步组合应用维度，形成：
+
+```text
+conversationId = appId + "_" + request.conversationId
+```
+
+因此：
+
+- 不同应用即使前端传入相同的 `conversationId`，其记忆也不会直接共用
+- 同一个应用下，只有 `conversationId` 一致的多次调用才会命中同一段会话记忆
 
 ## 9. 当前结论
 
@@ -828,6 +938,61 @@ instructions
 
 若未开启知识库检索，则 `instructions` 会直接通过模板引擎渲染为最终 `SystemMessage`。
 
+##### 10.3.3.3.1 模板变量的运行时装配
+
+`buildInstructions(...)` 在渲染提示词前，会先构造运行时变量 map。
+
+处理逻辑可以概括为：
+
+1. 遍历 `AgentConfig.promptVariables`
+2. 读取每个变量的 `name` 和 `defaultValue`
+3. 组装为 `Map<String, Object>`
+4. 再读取 `AgentRequest.promptVariables`
+5. 对已存在的同名变量进行覆盖
+6. 移除空值变量
+
+可表示为：
+
+```text
+AgentConfig.promptVariables
+  -> name -> defaultValue
+
+AgentRequest.promptVariables
+  -> override same key
+
+final prompt variable map
+  -> remove blank values
+```
+
+因此“变量最终值”的直接入口是：
+
+- 默认值入口：`AgentConfig.promptVariables[].defaultValue`
+- 运行时覆盖入口：`AgentRequest.promptVariables`
+
+##### 10.3.3.3.2 模板变量的渲染时机
+
+当未开启知识库检索时，变量会在 `buildInstructions(...)` 阶段立即渲染进提示词：
+
+```text
+instructions
+  + final prompt variable map
+  -> SystemPromptTemplate.createMessage(...)
+  -> SystemMessage
+```
+
+因此在普通场景下，模板变量的最终落点就是首条或显式传入的 `SYSTEM` 消息。
+
+##### 10.3.3.3.3 当前实现的一个限制
+
+从当前代码看，请求侧传入的 `AgentRequest.promptVariables` 并不会无条件追加到变量 map 中，而是只会覆盖“配置里已经声明过”的变量。
+
+这意味着：
+
+- 配置中已定义的变量，可以在请求时覆盖默认值
+- 配置中未声明的变量，即使请求里传了同名键，也不会进入最终渲染 map
+
+因此当前实现更偏向于“先声明变量，再按请求覆盖”，而不是“请求可任意动态注入新变量”。
+
 ##### 10.3.3.4 与知识库检索的关系
 
 知识库相关配置虽然会影响系统提示词，但**知识库本身并不是在 `buildMessages(...)` 中直接拼成普通消息**。
@@ -1039,6 +1204,164 @@ retrieval advisor
 - documents 影响最终注入给模型的检索上下文
 
 三者最终共同汇入增强后的 `SystemMessage`。
+
+##### 10.3.4.5.1 开启知识库时的延迟渲染
+
+当开启知识库检索时，`buildInstructions(...)` 不会立刻把完整模板渲染为最终带文档上下文的 `SystemMessage`。
+
+此时它会先做两件事：
+
+1. 保留原始 `instructions` 作为模板文本
+2. 将普通 `promptVariables` 存入 `AgentContext.promptVariables`
+
+随后到 `KnowledgeBaseRetrievalAdvisor` 阶段，再把：
+
+- `{documents}`
+- `context.promptVariables`
+
+合并成最终 `promptParameters`，再统一渲染模板。
+
+可表示为：
+
+```text
+buildInstructions(...)
+  -> context.setPromptVariables(map)
+  -> return templated SystemMessage
+
+KnowledgeBaseRetrievalAdvisor
+  -> documents -> {documents}
+  -> promptVariables -> promptParameters
+  -> SystemPromptTemplate.createMessage(promptParameters)
+```
+
+因此开启知识库后，模板变量的最终渲染落点不再只是 `buildInstructions(...)`，而是“`buildInstructions(...)` 预装配 + retrieval advisor 最终渲染”。
+
+##### 10.3.4.6 记忆装配入口
+
+`BasicAgent` 的记忆能力来自 `AgentConfig.memory`。
+
+当前配置结构的核心字段是：
+
+- `dialogRound`
+
+执行前并不是 `BasicAgentExecutor` 自己先判断是否启用记忆，而是由 `AgentServiceImpl` 先根据配置与请求信息计算 `memoryEnabled`，再写入 `AgentContext`。
+
+可概括为：
+
+```text
+AgentConfig.memory
+  -> AgentServiceImpl.memoryEnabled(...)
+  -> AgentContext.memoryEnabled
+  -> BasicAgentExecutor.buildChatClient(...)
+```
+
+##### 10.3.4.7 MessageChatMemoryAdvisor 的装配过程
+
+当 `context.isMemoryEnabled()` 为 `true` 时，`buildChatClient(...)` 会：
+
+1. 使用注入的 `chatMemory` 构建 `MessageChatMemoryAdvisor`
+2. 将该 advisor 挂载到 `ChatClient`
+3. 生成本次会话使用的实际 `conversationId`
+4. 通过 advisor 参数把 `CONVERSATION_ID` 传入
+
+可表示为：
+
+```text
+buildChatClient(...)
+  -> MessageChatMemoryAdvisor.builder(chatMemory).build()
+  -> ChatClient.defaultAdvisors(advisor)
+  -> param(CONVERSATION_ID, appId + "_" + request.conversationId)
+```
+
+因此记忆链路的运行时落点是 `ChatClient` 的 advisor 层，而不是 `buildMessages(...)`。
+
+##### 10.3.4.8 记忆的底层存储
+
+当前实现中，`chatMemory` 的具体实现是 `ConversationChatMemory`。
+
+它的特点是：
+
+- 通过 Redis 保存会话消息历史
+- 使用 `conversation_chat:%s` 作为缓存 key 前缀
+- 最大缓存条数由公共配置 `maxConversationRoundInCache` 控制
+
+因此 `AgentConfig.memory` 负责声明“要不要用记忆、记忆的逻辑参数”，而真正的会话消息内容保存在运行时缓存中。
+
+##### 10.3.4.9 `dialogRound` 在当前实现中的实际作用
+
+虽然当前实现会读取：
+
+- `config.getMemory().getDialogRound()`
+
+但从现有代码看，这个值目前主要用于“判断是否启用记忆”。
+
+原本用于把“取回多少轮历史消息”传给 advisor 的参数代码处于注释状态，因此当前实现里：
+
+- `dialogRound > 0`：可以触发记忆能力装配
+- 但未真正严格控制 advisor 每次只取回多少轮对话
+
+因此当前实现更接近于：
+
+```text
+dialogRound
+  -> 记忆开关条件之一
+  -> 尚未完整落实为精确的历史裁剪参数
+```
+
+##### 10.3.4.10 记忆与前端历史消息的区别
+
+`BasicAgent` 中“前端传历史消息”和“后端记忆”是两条不同链路。
+
+前端历史消息指的是：
+
+- `AgentRequest.messages`
+- 在 `buildMessages(...)` 阶段被逐条转换为 `Prompt` 中的基础消息
+
+后端记忆指的是：
+
+- 基于 `conversationId` 从 `ChatMemory` 取回的历史消息
+- 在 `ChatClient` 的 memory advisor 阶段参与模型调用
+
+可对比为：
+
+```text
+前端历史消息
+  -> 来源：request.messages
+  -> 时机：buildMessages(...)
+  -> 性质：本次请求显式传入的上下文
+
+后端记忆
+  -> 来源：ChatMemory / Redis
+  -> 时机：MessageChatMemoryAdvisor
+  -> 性质：跨请求复用的持久化会话上下文
+```
+
+这意味着：
+
+- 前端可以完全控制本次请求带哪些历史消息
+- 后端记忆则依赖既有会话缓存自动补充上下文
+- 两者如果同时都携带完整历史，可能会产生上下文重复
+
+因此从语义上应明确区分：
+
+```text
+messages
+  -> “这次请求显式带来了什么”
+
+memory advisor
+  -> “系统自动补回了什么历史”
+```
+
+##### 10.3.4.11 当前实现的一个注意点
+
+`memoryEnabled(...)` 的判断发生在“自动补 `conversationId`”之前。
+
+这意味着如果请求进入时没有显式传入 `conversationId`，那么即使后续系统会生成新的 `conversationId`，本次调用也不会被判定为启用记忆。
+
+因此当前实现下：
+
+- 首次请求若未传 `conversationId`，通常不会命中记忆
+- 后续若沿用同一个 `conversationId`，才会形成稳定的会话记忆链路
 
 ### 10.4 非流式执行链
 
