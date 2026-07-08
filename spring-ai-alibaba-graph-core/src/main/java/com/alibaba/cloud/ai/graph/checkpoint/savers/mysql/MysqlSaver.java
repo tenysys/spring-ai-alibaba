@@ -15,10 +15,9 @@
  */
 package com.alibaba.cloud.ai.graph.checkpoint.savers.mysql;
 
-import com.alibaba.cloud.ai.graph.RunnableConfig;
 import com.alibaba.cloud.ai.graph.StateGraph;
-import com.alibaba.cloud.ai.graph.checkpoint.BaseCheckpointSaver;
 import com.alibaba.cloud.ai.graph.checkpoint.Checkpoint;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.jdbc.AbstractJdbcCheckpointSaver;
 import com.alibaba.cloud.ai.graph.serializer.StateSerializer;
 
 import java.io.IOException;
@@ -30,13 +29,11 @@ import java.sql.Statement;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.sql.DataSource;
 
@@ -58,12 +55,16 @@ import static java.util.Objects.requireNonNull;
  *     CREATE TABLE GRAPH_THREAD (
  *          thread_id VARCHAR(36) PRIMARY KEY,
  *          thread_name VARCHAR(255),
- *          is_released BOOLEAN DEFAULT FALSE NOT NULL
+ *          is_released BOOLEAN DEFAULT FALSE NOT NULL,
+ *          active_thread_name VARCHAR(255) GENERATED ALWAYS AS (
+ *              CASE WHEN is_released = FALSE THEN thread_name ELSE NULL END
+ *          ) STORED
  *     )
- *     CREATE UNIQUE INDEX IDX_GRAPH_THREAD_NAME_RELEASED
- *          ON GRAPH_THREAD(thread_name, is_released)
+ *     CREATE UNIQUE INDEX IDX_GRAPH_THREAD_ACTIVE_NAME
+ *          ON GRAPH_THREAD(active_thread_name)
  *
  *     CREATE TABLE GRAPH_CHECKPOINT (
+ *          checkpoint_seq BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
  *          checkpoint_id VARCHAR(36) PRIMARY KEY,
  *          thread_id VARCHAR(36) NOT NULL,
  *          node_id VARCHAR(255),
@@ -99,7 +100,7 @@ import static java.util.Objects.requireNonNull;
  * </pre>
  * </p>
  */
-public class MysqlSaver implements BaseCheckpointSaver {
+public class MysqlSaver extends AbstractJdbcCheckpointSaver {
 
 	private static final Logger log = LoggerFactory.getLogger(MysqlSaver.class);
 
@@ -108,16 +109,20 @@ public class MysqlSaver implements BaseCheckpointSaver {
 			CREATE TABLE IF NOT EXISTS GRAPH_THREAD (
 			   thread_id VARCHAR(36) PRIMARY KEY,
 			   thread_name VARCHAR(255),
-			   is_released BOOLEAN DEFAULT FALSE NOT NULL
+			   is_released BOOLEAN DEFAULT FALSE NOT NULL,
+			   active_thread_name VARCHAR(255) GENERATED ALWAYS AS (
+			       CASE WHEN is_released = FALSE THEN thread_name ELSE NULL END
+			   ) STORED
 			)""";
 
 	private static final String INDEX_THREAD_TABLE = """
-			CREATE UNIQUE INDEX IDX_GRAPH_THREAD_NAME_RELEASED
-			  ON GRAPH_THREAD(thread_name, is_released)
+			CREATE UNIQUE INDEX IDX_GRAPH_THREAD_ACTIVE_NAME
+			  ON GRAPH_THREAD(active_thread_name)
 			""";
 
 	private static final String CREATE_CHECKPOINT_TABLE = """
 			CREATE TABLE IF NOT EXISTS GRAPH_CHECKPOINT (
+			   checkpoint_seq BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
 			   checkpoint_id VARCHAR(36) PRIMARY KEY,
 			   thread_id VARCHAR(36) NOT NULL,
 			   node_id VARCHAR(255),
@@ -133,6 +138,32 @@ public class MysqlSaver implements BaseCheckpointSaver {
 
 	private static final String DROP_CHECKPOINT_TABLE = "DROP TABLE IF EXISTS GRAPH_CHECKPOINT";
 	private static final String DROP_THREAD_TABLE = "DROP TABLE IF EXISTS GRAPH_THREAD";
+	private static final String DROP_LEGACY_THREAD_INDEX = "DROP INDEX IDX_GRAPH_THREAD_NAME_RELEASED ON GRAPH_THREAD";
+
+	private static final String INDEX_CHECKPOINT_THREAD_SEQUENCE = """
+			CREATE INDEX IDX_GRAPH_CHECKPOINT_THREAD_SEQUENCE
+			  ON GRAPH_CHECKPOINT(thread_id, checkpoint_seq)
+			""";
+
+	private static final String ADD_CHECKPOINT_SEQUENCE_COLUMN = """
+			ALTER TABLE GRAPH_CHECKPOINT
+			ADD COLUMN checkpoint_seq BIGINT NOT NULL AUTO_INCREMENT UNIQUE
+			""";
+
+	private static final String HAS_CHECKPOINT_SEQUENCE_COLUMN = """
+			SHOW COLUMNS FROM GRAPH_CHECKPOINT LIKE 'checkpoint_seq'
+			""";
+
+	private static final String ADD_ACTIVE_THREAD_NAME_COLUMN = """
+			ALTER TABLE GRAPH_THREAD
+			ADD COLUMN active_thread_name VARCHAR(255) GENERATED ALWAYS AS (
+			    CASE WHEN is_released = FALSE THEN thread_name ELSE NULL END
+			) STORED
+			""";
+
+	private static final String HAS_ACTIVE_THREAD_NAME_COLUMN = """
+			SHOW COLUMNS FROM GRAPH_THREAD LIKE 'active_thread_name'
+			""";
 
 	// DML statements
 	private static final String UPSERT_THREAD = """
@@ -169,11 +200,18 @@ public class MysqlSaver implements BaseCheckpointSaver {
 			FROM GRAPH_CHECKPOINT c
 			  INNER JOIN GRAPH_THREAD t ON c.thread_id = t.thread_id
 			WHERE t.thread_name = ? AND t.is_released != TRUE
-			ORDER BY c.saved_at DESC
+			ORDER BY c.checkpoint_seq DESC
 			""";
 
 	private static final String RELEASE_THREAD = """
 			UPDATE GRAPH_THREAD SET is_released = TRUE WHERE thread_name = ? AND is_released = FALSE
+			""";
+
+	private static final String DELETE_CHECKPOINTS = """
+			DELETE c FROM GRAPH_CHECKPOINT c
+			INNER JOIN GRAPH_THREAD t ON c.thread_id = t.thread_id
+			WHERE t.thread_name = ? AND t.is_released != TRUE
+			  AND c.checkpoint_id IN (%s)
 			""";
 
 	private static final String SELECT_LATEST_CHECKPOINT = """
@@ -185,7 +223,7 @@ public class MysqlSaver implements BaseCheckpointSaver {
 			FROM GRAPH_CHECKPOINT c
 			  INNER JOIN GRAPH_THREAD t ON c.thread_id = t.thread_id
 			WHERE t.thread_name = ? AND t.is_released != TRUE
-			ORDER BY c.saved_at DESC
+			ORDER BY c.checkpoint_seq DESC
 			LIMIT 1
 			""";
 
@@ -206,10 +244,6 @@ public class MysqlSaver implements BaseCheckpointSaver {
 	private final CreateOption createOption;
 	private final StateSerializer stateSerializer;
 
-	private final Map<String, Checkpoint> latestCheckpointCache;
-	private final ReentrantLock lock = new ReentrantLock();
-	private final int maxCachedThreads;
-
 	/**
 	 * Private constructor used by the builder to create a new instance of
 	 * MysqlSaver.
@@ -217,11 +251,10 @@ public class MysqlSaver implements BaseCheckpointSaver {
 	 * @param builder the builder
 	 */
 	private MysqlSaver(Builder builder) {
+		super(builder.maxCachedThreads);
 		this.dataSource = builder.dataSource;
 		this.createOption = builder.createOption;
 		this.stateSerializer = builder.stateSerializer;
-		this.maxCachedThreads = builder.maxCachedThreads;
-		this.latestCheckpointCache = createLatestCheckpointCache(builder.maxCachedThreads);
 		initTables();
 	}
 
@@ -310,21 +343,65 @@ public class MysqlSaver implements BaseCheckpointSaver {
 					createOption == CreateOption.CREATE_IF_NOT_EXISTS) {
 				statement.execute(CREATE_THREAD_TABLE);
 				statement.execute(CREATE_CHECKPOINT_TABLE);
-
-				// Try to create index, ignore error if it already exists
-				try {
-					statement.execute(INDEX_THREAD_TABLE);
-				}
-				catch (SQLException e) {
-					// Ignore "Duplicate key name" error (error code 1061)
-					if (e.getErrorCode() != 1061) {
-						throw e;
-					}
-				}
+				ensureActiveThreadNameColumn(connection);
+				ensureCheckpointSequenceColumn(connection);
+				replaceThreadIndex(statement);
+				createIndexIfAbsent(statement, INDEX_CHECKPOINT_THREAD_SEQUENCE);
 			}
 		}
 		catch (SQLException sqlException) {
 			throw new RuntimeException("Unable to create tables", sqlException);
+		}
+	}
+
+	private void createIndexIfAbsent(Statement statement, String indexSql) throws SQLException {
+		try {
+			statement.execute(indexSql);
+		}
+		catch (SQLException e) {
+			// Ignore "Duplicate key name" error (error code 1061)
+			if (e.getErrorCode() != 1061) {
+				throw e;
+			}
+		}
+	}
+
+	private void replaceThreadIndex(Statement statement) throws SQLException {
+		try {
+			statement.execute(DROP_LEGACY_THREAD_INDEX);
+		}
+		catch (SQLException e) {
+			// Ignore "Can't DROP ...; check that column/key exists" error (error code 1091)
+			if (e.getErrorCode() != 1091) {
+				throw e;
+			}
+		}
+		createIndexIfAbsent(statement, INDEX_THREAD_TABLE);
+	}
+
+	private void ensureActiveThreadNameColumn(Connection connection) throws SQLException {
+		try (Statement statement = connection.createStatement();
+			 ResultSet resultSet = statement.executeQuery(HAS_ACTIVE_THREAD_NAME_COLUMN)) {
+			if (resultSet.next()) {
+				return;
+			}
+		}
+
+		try (Statement statement = connection.createStatement()) {
+			statement.execute(ADD_ACTIVE_THREAD_NAME_COLUMN);
+		}
+	}
+
+	private void ensureCheckpointSequenceColumn(Connection connection) throws SQLException {
+		try (Statement statement = connection.createStatement();
+			 ResultSet resultSet = statement.executeQuery(HAS_CHECKPOINT_SEQUENCE_COLUMN)) {
+			if (resultSet.next()) {
+				return;
+			}
+		}
+
+		try (Statement statement = connection.createStatement()) {
+			statement.execute(ADD_CHECKPOINT_SEQUENCE_COLUMN);
 		}
 	}
 
@@ -341,7 +418,8 @@ public class MysqlSaver implements BaseCheckpointSaver {
 	/**
 	 * Loads full checkpoint history on demand without retaining it in cache.
 	 */
-	private LinkedList<Checkpoint> selectCheckpoints(String threadName) throws Exception {
+	@Override
+	protected LinkedList<Checkpoint> selectCheckpoints(String threadName) throws Exception {
 		LinkedList<Checkpoint> checkpoints = new LinkedList<>();
 		try (Connection connection = dataSource.getConnection();
 				PreparedStatement preparedStatement = connection.prepareStatement(SELECT_CHECKPOINTS)) {
@@ -359,7 +437,8 @@ public class MysqlSaver implements BaseCheckpointSaver {
 		return checkpoints;
 	}
 
-	private Optional<Checkpoint> selectLatestCheckpoint(String threadName) throws Exception {
+	@Override
+	protected Optional<Checkpoint> selectLatestCheckpoint(String threadName) throws Exception {
 		try (Connection connection = dataSource.getConnection();
 				PreparedStatement preparedStatement = connection.prepareStatement(SELECT_LATEST_CHECKPOINT)) {
 
@@ -376,7 +455,8 @@ public class MysqlSaver implements BaseCheckpointSaver {
 		}
 	}
 
-	private Optional<Checkpoint> selectCheckpointById(String threadName, String checkpointId) throws Exception {
+	@Override
+	protected Optional<Checkpoint> selectCheckpointById(String threadName, String checkpointId) throws Exception {
 		try (Connection connection = dataSource.getConnection();
 				PreparedStatement preparedStatement = connection.prepareStatement(SELECT_CHECKPOINT_BY_ID)) {
 
@@ -394,7 +474,8 @@ public class MysqlSaver implements BaseCheckpointSaver {
 		}
 	}
 
-	private void insertCheckpoint(String threadName, Checkpoint checkpoint) throws Exception {
+	@Override
+	protected void insertCheckpoint(String threadName, Checkpoint checkpoint) throws Exception {
 		Connection conn = null;
 		try (Connection ignored = conn = dataSource.getConnection()) {
 			conn.setAutoCommit(false);
@@ -424,7 +505,8 @@ public class MysqlSaver implements BaseCheckpointSaver {
 		}
 	}
 
-	private void updateCheckpoint(String threadName, String checkpointId, Checkpoint checkpoint) throws Exception {
+	@Override
+	protected void updateCheckpoint(String threadName, String checkpointId, Checkpoint checkpoint) throws Exception {
 		Connection conn = null;
 		try (Connection ignored = conn = dataSource.getConnection()) {
 			conn.setAutoCommit(false);
@@ -453,7 +535,28 @@ public class MysqlSaver implements BaseCheckpointSaver {
 		}
 	}
 
-	private void releaseThread(String threadName) throws Exception {
+	@Override
+	protected void deleteCheckpoints(String threadName, Collection<String> checkpointIds) throws Exception {
+		if (checkpointIds.isEmpty()) {
+			return;
+		}
+		try (Connection connection = dataSource.getConnection();
+				PreparedStatement preparedStatement = connection.prepareStatement(
+						DELETE_CHECKPOINTS.formatted(String.join(", ", Collections.nCopies(checkpointIds.size(), "?"))))) {
+			preparedStatement.setString(1, threadName);
+			int index = 2;
+			for (String checkpointId : checkpointIds) {
+				preparedStatement.setString(index++, checkpointId);
+			}
+			preparedStatement.executeUpdate();
+		}
+		catch (SQLException ex) {
+			throw new Exception("Unable to delete retained checkpoints", ex);
+		}
+	}
+
+	@Override
+	protected void releaseThread(String threadName) throws Exception {
 		Connection conn = null;
 		try (Connection ignored = conn = dataSource.getConnection()) {
 			conn.setAutoCommit(false);
@@ -474,137 +577,6 @@ public class MysqlSaver implements BaseCheckpointSaver {
 			log.error("Error releasing thread {}", threadName, ex);
 			rollback(conn, threadName);
 			throw new Exception("Unable to release checkpoint", ex);
-		}
-	}
-
-	/**
-	 * Lists active checkpoints for the configured thread.
-	 */
-	@Override
-	public Collection<Checkpoint> list(RunnableConfig config) {
-		lock.lock();
-		try {
-			String threadName = config.threadId().orElse(THREAD_ID_DEFAULT);
-			LinkedList<Checkpoint> checkpoints = selectCheckpoints(threadName);
-			if (!checkpoints.isEmpty()) {
-				cacheLatest(threadName, checkpoints.peek());
-			}
-			return Collections.unmodifiableCollection(checkpoints);
-		}
-		catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-		finally {
-			lock.unlock();
-		}
-	}
-
-	/**
-	 * Gets a checkpoint for the configured thread.
-	 */
-	@Override
-	public Optional<Checkpoint> get(RunnableConfig config) {
-		lock.lock();
-		try {
-			String threadName = config.threadId().orElse(THREAD_ID_DEFAULT);
-			if (config.checkPointId().isPresent()) {
-				return selectCheckpointById(threadName, config.checkPointId().get());
-			}
-
-			Optional<Checkpoint> cached = getCachedLatest(threadName);
-			if (cached.isPresent()) {
-				return cached;
-			}
-
-			Optional<Checkpoint> latest = selectLatestCheckpoint(threadName);
-			latest.ifPresent(checkpoint -> cacheLatest(threadName, checkpoint));
-			return latest;
-		}
-		catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-		finally {
-			lock.unlock();
-		}
-	}
-
-	/**
-	 * Inserts or updates a checkpoint.
-	 */
-	@Override
-	public RunnableConfig put(RunnableConfig config, Checkpoint checkpoint) throws Exception {
-		lock.lock();
-		try {
-			String threadName = config.threadId().orElse(THREAD_ID_DEFAULT);
-			if (config.checkPointId().isPresent()) {
-				String checkpointId = config.checkPointId().get();
-				updateCheckpoint(threadName, checkpointId, checkpoint);
-				getCachedLatest(threadName)
-						.filter(latest -> latest.getId().equals(checkpointId))
-						.ifPresent(latest -> cacheLatest(threadName, checkpoint));
-				return config;
-			}
-
-			insertCheckpoint(threadName, checkpoint);
-			cacheLatest(threadName, checkpoint);
-			return RunnableConfig.builder(config)
-					.checkPointId(checkpoint.getId())
-					.build();
-		}
-		finally {
-			lock.unlock();
-		}
-	}
-
-	/**
-	 * Releases the active thread and returns the released checkpoints.
-	 */
-	@Override
-	public Tag release(RunnableConfig config) throws Exception {
-		lock.lock();
-		try {
-			String threadName = config.threadId().orElse(THREAD_ID_DEFAULT);
-			LinkedList<Checkpoint> checkpoints = selectCheckpoints(threadName);
-			releaseThread(threadName);
-			removeCachedLatest(threadName);
-			return new Tag(threadName, checkpoints);
-		}
-		finally {
-			lock.unlock();
-		}
-	}
-
-	/**
-	 * Creates a bounded LRU cache for latest checkpoints.
-	 */
-	private static Map<String, Checkpoint> createLatestCheckpointCache(int maxCachedThreads) {
-		if (maxCachedThreads == 0) {
-			return Collections.emptyMap();
-		}
-		return new LinkedHashMap<>(16, 0.75f, true) {
-			@Override
-			protected boolean removeEldestEntry(Map.Entry<String, Checkpoint> eldest) {
-				return size() > maxCachedThreads;
-			}
-		};
-	}
-
-	private Optional<Checkpoint> getCachedLatest(String threadName) {
-		if (maxCachedThreads == 0) {
-			return Optional.empty();
-		}
-		return Optional.ofNullable(latestCheckpointCache.get(threadName));
-	}
-
-	private void cacheLatest(String threadName, Checkpoint checkpoint) {
-		if (maxCachedThreads > 0) {
-			latestCheckpointCache.put(threadName, checkpoint);
-		}
-	}
-
-	private void removeCachedLatest(String threadName) {
-		if (maxCachedThreads > 0) {
-			latestCheckpointCache.remove(threadName);
 		}
 	}
 

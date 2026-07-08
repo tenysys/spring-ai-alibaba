@@ -32,6 +32,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collection;
@@ -50,6 +51,7 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.EnabledIfDockerAvailable;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.alibaba.cloud.ai.graph.checkpoint.savers.LatestCheckpointCacheTestSupport.enableLatestCheckpointCache;
 import static com.alibaba.cloud.ai.graph.StateGraph.END;
 import static com.alibaba.cloud.ai.graph.StateGraph.START;
 import static com.alibaba.cloud.ai.graph.action.AsyncNodeAction.node_async;
@@ -133,11 +135,90 @@ public class MysqlSaverTest {
     }
 
     private static Checkpoint checkpoint(String value) {
-        return Checkpoint.builder()
+        return checkpoint(null, value);
+    }
+
+    private static Checkpoint checkpoint(String id, String value) {
+        Checkpoint.Builder builder = Checkpoint.builder()
                 .nodeId("agent_1")
                 .nextNodeId(END)
-                .state(Map.of("value", value))
+                .state(Map.of("value", value));
+        if (id != null) {
+            builder.id(id);
+        }
+        return builder.build();
+    }
+
+    private static void forceSameSavedAt(String threadId) throws SQLException {
+        try (Connection connection = DATA_SOURCE.getConnection();
+                PreparedStatement statement = connection.prepareStatement("""
+                        UPDATE GRAPH_CHECKPOINT c
+                        INNER JOIN GRAPH_THREAD t ON c.thread_id = t.thread_id
+                        SET c.saved_at = TIMESTAMP('2026-01-01 00:00:00')
+                        WHERE t.thread_name = ? AND t.is_released != TRUE
+                        """)) {
+            statement.setString(1, threadId);
+            assertEquals(2, statement.executeUpdate());
+        }
+    }
+
+    private static String firstCheckpointId() {
+        return "00000000-0000-0000-0000-000000000001";
+    }
+
+    private static String secondCheckpointId() {
+        return "00000000-0000-0000-0000-000000000002";
+    }
+
+    @Test
+    public void testMysqlSaverOrdersCheckpointsByInsertSequenceWhenSavedAtTies() throws Exception {
+        var saver = MysqlSaver.builder()
+                .createOption(CreateOption.CREATE_OR_REPLACE)
+                .dataSource(DATA_SOURCE)
+                .maxCachedThreads(0)
                 .build();
+
+        String threadId = "mysql-checkpoint-sequence-thread";
+        var firstCheckpoint = checkpoint(firstCheckpointId(), "first");
+        var secondCheckpoint = checkpoint(secondCheckpointId(), "second");
+
+        saver.put(config(threadId), firstCheckpoint);
+        saver.put(config(threadId), secondCheckpoint);
+        forceSameSavedAt(threadId);
+
+        Collection<Checkpoint> history = saver.list(config(threadId));
+        assertEquals(2, history.size());
+        assertEquals(secondCheckpoint.getId(), history.iterator().next().getId());
+
+        var latest = saver.get(config(threadId));
+        assertTrue(latest.isPresent());
+        assertEquals(secondCheckpoint.getId(), latest.get().getId());
+    }
+
+    @Test
+    public void testMysqlSaverCanReleaseSameThreadNameMoreThanOnce() throws Exception {
+        var saver = MysqlSaver.builder()
+                .createOption(CreateOption.CREATE_OR_REPLACE)
+                .dataSource(DATA_SOURCE)
+                .build();
+
+        String threadId = "mysql-repeat-release-thread";
+        var firstCheckpoint = checkpoint("first");
+        var secondCheckpoint = checkpoint("second");
+
+        saver.put(config(threadId), firstCheckpoint);
+        var firstRelease = saver.release(config(threadId));
+        assertEquals(threadId, firstRelease.threadId());
+        assertEquals(1, firstRelease.checkpoints().size());
+        assertTrue(saver.get(config(threadId)).isEmpty());
+
+        saver.put(config(threadId), secondCheckpoint);
+        assertEquals(secondCheckpoint.getId(), saver.get(config(threadId)).orElseThrow().getId());
+
+        var secondRelease = saver.release(config(threadId));
+        assertEquals(threadId, secondRelease.threadId());
+        assertEquals(1, secondRelease.checkpoints().size());
+        assertTrue(saver.get(config(threadId)).isEmpty());
     }
 
     @Test
@@ -263,11 +344,11 @@ public class MysqlSaverTest {
     @Test
     public void testLatestCheckpointCacheIsBoundedByThreadCount() throws Exception {
         var countingDataSource = new CountingDataSource(DATA_SOURCE);
-        var saver = MysqlSaver.builder()
+        var saver = enableLatestCheckpointCache(MysqlSaver.builder()
                 .createOption(CreateOption.CREATE_OR_REPLACE)
                 .dataSource(countingDataSource)
                 .maxCachedThreads(2)
-                .build();
+                .build());
 
         var firstCheckpoint = checkpoint("first");
         var firstConfig = config("mysql-cache-thread-1");
@@ -285,11 +366,11 @@ public class MysqlSaverTest {
     @Test
     public void testMysqlSaverKeepsOnlyLatestCheckpointInMemory() throws Exception {
         var countingDataSource = new CountingDataSource(DATA_SOURCE);
-        var saver = MysqlSaver.builder()
+        var saver = enableLatestCheckpointCache(MysqlSaver.builder()
                 .createOption(CreateOption.CREATE_OR_REPLACE)
                 .dataSource(countingDataSource)
                 .maxCachedThreads(16)
-                .build();
+                .build());
 
         String threadId = "mysql-cache-single-thread";
         var firstCheckpoint = checkpoint("first");
@@ -316,6 +397,36 @@ public class MysqlSaverTest {
         assertEquals(1, countingDataSource.checkpointByIdSelects());
     }
 
+    @Test
+    public void testMysqlSaverRetainsOnlyLatestCheckpoints() throws Exception {
+        var countingDataSource = new CountingDataSource(DATA_SOURCE);
+        var saver = MysqlSaver.builder()
+                .createOption(CreateOption.CREATE_OR_REPLACE)
+                .dataSource(countingDataSource)
+                .maxCachedThreads(16)
+                .build();
+
+        String threadId = "mysql-retention-thread";
+        var config = RunnableConfig.builder()
+                .threadId(threadId)
+                .checkpointsNumRetained(2)
+                .build();
+        var firstCheckpoint = checkpoint("first");
+        var secondCheckpoint = checkpoint("second");
+        var thirdCheckpoint = checkpoint("third");
+
+        saver.put(config, firstCheckpoint);
+        saver.put(config, secondCheckpoint);
+        countingDataSource.reset();
+        saver.put(config, thirdCheckpoint);
+
+        assertEquals(1, countingDataSource.deleteCheckpointStatements());
+        Collection<Checkpoint> history = saver.list(config);
+        assertEquals(2, history.size());
+        assertEquals(thirdCheckpoint.getId(), history.iterator().next().getId());
+        assertTrue(saver.get(config(threadId, firstCheckpoint.getId())).isEmpty());
+    }
+
     private static final class CountingDataSource implements DataSource {
 
         private final DataSource delegate;
@@ -324,6 +435,8 @@ public class MysqlSaverTest {
 
         private final AtomicInteger checkpointByIdSelects = new AtomicInteger();
 
+        private final AtomicInteger deleteCheckpointStatements = new AtomicInteger();
+
         private CountingDataSource(DataSource delegate) {
             this.delegate = delegate;
         }
@@ -331,6 +444,7 @@ public class MysqlSaverTest {
         void reset() {
             latestCheckpointSelects.set(0);
             checkpointByIdSelects.set(0);
+            deleteCheckpointStatements.set(0);
         }
 
         int latestCheckpointSelects() {
@@ -339,6 +453,10 @@ public class MysqlSaverTest {
 
         int checkpointByIdSelects() {
             return checkpointByIdSelects.get();
+        }
+
+        int deleteCheckpointStatements() {
+            return deleteCheckpointStatements.get();
         }
 
         @Override
@@ -374,6 +492,9 @@ public class MysqlSaverTest {
             }
             if (sql.contains("AND c.checkpoint_id = ?")) {
                 checkpointByIdSelects.incrementAndGet();
+            }
+            if (sql.contains("DELETE c FROM GRAPH_CHECKPOINT")) {
+                deleteCheckpointStatements.incrementAndGet();
             }
         }
 
